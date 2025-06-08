@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Activity, ActivityTags, FilterOptions, Filters, CefrRangeFilter } from './types';
 import FilterPanel from './components/FilterPanel';
@@ -73,7 +74,7 @@ const MainAppLayout: React.FC<{
         onToggleEditMode={toggleEditMode}
       />
     )}
-    <main className={`flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto transition-all duration-300 ease-in-out ${isGlobalToolsPanelOpen ? 'lg:mr-[320px]' : 'mr-0'}`}>
+    <main className={`flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto transition-all duration-300 ease-in-out relative z-0 ${isGlobalToolsPanelOpen ? 'lg:mr-[320px]' : 'mr-0'}`}>
       <div className="mb-6 text-brandTextSecondary">
         Showing {filteredActivities.length} of {allActivities.length} activities.
       </div>

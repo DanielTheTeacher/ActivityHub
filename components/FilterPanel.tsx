@@ -105,11 +105,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
         {activePopover === category && (options.sub_category_options[category]?.length > 0) && (
           <div
-            className="absolute left-full top-0 ml-1 w-64 bg-white shadow-xl rounded-md border border-brandNeutral-300 p-2 z-30 animate-popover-appear max-h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-brandPrimary-300 scrollbar-track-brandNeutral-100"
+            className="absolute top-full left-0 w-64 bg-white/95 shadow-xl rounded-md border border-brandNeutral-300 p-2 z-[999] animate-popover-appear max-h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-brandPrimary-300 scrollbar-track-brandNeutral-100"
             onMouseEnter={() => setActivePopover(category)} 
             onMouseLeave={() => setActivePopover(null)} 
           >
-            <h4 className="text-xs font-semibold text-brandTextSecondary mb-1 sticky top-0 bg-white py-1 px-1.5">Subcategories for {category}</h4>
+            <h4 className="text-xs font-semibold text-brandTextSecondary mb-1 sticky top-0 bg-white/95 py-1 px-1.5">Subcategories for {category}</h4>
             {(options.sub_category_options[category] || []).map(subCat => (
               <button 
                 key={subCat}
@@ -143,9 +143,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 
   return (
-    <aside className="w-full lg:w-80 xl:w-96 bg-white shadow-xl lg:sticky lg:top-0 lg:h-screen border-r border-brandNeutral-200 flex flex-col z-10">
-      {/* Non-scrolling Header Area */}
-      <div className="p-6 border-b border-brandPrimary-200 pb-4">
+    <aside className="w-full lg:w-80 xl:w-96 bg-white shadow-xl lg:sticky lg:top-0 lg:h-screen border-r border-brandNeutral-200 flex flex-col z-40 overflow-y-auto overflow-x-visible scrollbar-thin scrollbar-thumb-brandPrimary-400 scrollbar-track-brandNeutral-100">
+      {/* Non-scrolling Header Area - will now scroll if content overflows aside */}
+      <div className="p-6 border-b border-brandPrimary-200 pb-4 flex-shrink-0">
         <div className="flex flex-col items-center mb-4">
           <img 
             src="/assets/daniel_the_teacher_logo.png" 
@@ -157,15 +157,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
       </div>
 
       {isEditModeActive && (
-        <div className="px-6 pt-3 pb-3 border-b border-brandNeutral-200">
+        <div className="px-6 pt-3 pb-3 border-b border-brandNeutral-200 flex-shrink-0">
            <div className="p-2 bg-brandAccent-100 text-brandAccent-700 text-sm rounded-md border border-brandAccent-300" role="status">
                 ✏️ **Edit Mode Active:** Changes can be permanently saved.
             </div>
         </div>
       )}
 
-      {/* Scrollable Content Area */}
-      <div className="flex-grow p-6 space-y-6 overflow-y-auto scrollbar-thin scrollbar-thumb-brandPrimary-400 scrollbar-track-brandNeutral-100">
+      {/* Content Area - no longer clips its children with overflow */}
+      <div className="flex-grow p-6 space-y-6">
         <div>
           <label htmlFor="searchTerm" className="block text-sm font-medium text-brandTextSecondary mb-1">Search Keywords</label>
           <div className="relative">

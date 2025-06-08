@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Activity, ActivityTags, FilterOptions, Flashcard } from '../types'; // Added Flashcard
 import CheckboxGroup from './shared/CheckboxGroup'; 
@@ -115,9 +116,8 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
   
   const [showPrependedInstruction, setShowPrependedInstruction] = useState<boolean>(false);
 
-  const PADDING_BUFFER = 10; // Small buffer for padding/margins
   const DEFAULT_FONT_SIZE = "16px"; 
-  const TOOLS_PANEL_WIDTH = 320; // Assumed width of the global tools panel
+  const TOOLS_PANEL_WIDTH = 320; // Assumed width of the global tools panel, matches App.tsx lg:mr-[320px]
 
 
   useEffect(() => {
@@ -266,13 +266,12 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
 
     if (isTextEnlarged && enlargedTextRef.current && mainContentRef.current && modalContainerRef.current && activity) {
         const textContainer = enlargedTextRef.current;
-        const mainContent = mainContentRef.current;
-        const modalContainer = modalContainerRef.current;
-
-        // Reset styles for measurement
+        const mainContent = mainContentRef.current; // This is the div with p-6
+        
+        // Reset styles before recalculating
         textContainer.style.fontSize = '';
         textContainer.style.lineHeight = '';
-        textContainer.style.width = '';
+        textContainer.style.width = ''; // Crucial reset
 
         let contentToMeasure = descriptionTextForDisplay.trim();
         if (showPrependedInstruction && activity.tags.teacher_instruction) {
@@ -283,55 +282,47 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
             setDynamicFontSize(DEFAULT_FONT_SIZE);
             textContainer.style.fontSize = DEFAULT_FONT_SIZE;
             textContainer.style.lineHeight = '1.5';
-            return () => { // Cleanup if we return early
+            return () => {
                 if (animationFrameId) cancelAnimationFrame(animationFrameId);
                 if (timeoutId) clearTimeout(timeoutId);
             };
         }
         
-        // Add a small delay to allow layout to settle
         timeoutId = window.setTimeout(() => {
             animationFrameId = requestAnimationFrame(() => {
                 if (!enlargedTextRef.current || !mainContentRef.current || !modalContainerRef.current) return;
 
-                const mainContentRect = mainContent.getBoundingClientRect();
-                
-                let targetTextWidth: number;
-                const mainContentClientWidth = mainContent.clientWidth;
-                const mainContentPadding = 24; 
+                const mainContentPadding = 24; // p-6 means 24px each side
+                let availableWidthForTextNoPanel = mainContent.clientWidth - (2 * mainContentPadding);
+                let availableWidthForText = availableWidthForTextNoPanel;
 
                 if (isGlobalToolsPanelOpen) {
-                    const mainContentAbsoluteLeft = mainContentRect.left;
-                    const toolsPanelLeftEdgeViewport = window.innerWidth - TOOLS_PANEL_WIDTH;
-                    let widthBeforeToolbar = toolsPanelLeftEdgeViewport - mainContentAbsoluteLeft;
-                    widthBeforeToolbar = widthBeforeToolbar - mainContentPadding - PADDING_BUFFER; 
-                    targetTextWidth = Math.min(mainContentClientWidth - PADDING_BUFFER, widthBeforeToolbar);
-                } else {
-                    targetTextWidth = mainContentClientWidth - PADDING_BUFFER;
+                    const mainContentRect = mainContent.getBoundingClientRect();
+                    const toolsPanelEdge = window.innerWidth - TOOLS_PANEL_WIDTH;
+                    
+                    const mainContentContentBoxRightEdge = mainContentRect.left + mainContent.clientWidth - mainContentPadding;
+
+                    if (mainContentContentBoxRightEdge > toolsPanelEdge) {
+                        const widthIfPanelOverlaps = toolsPanelEdge - (mainContentRect.left + mainContentPadding);
+                        availableWidthForText = Math.max(0, widthIfPanelOverlaps);
+                    }
                 }
                 
-                const finalAvailableWidth = Math.max(50, targetTextWidth);
-                const mainContentClientHeight = mainContent.clientHeight;
-                const availableHeightForText = mainContentClientHeight - PADDING_BUFFER;
+                availableWidthForText = Math.max(50, availableWidthForText);
+                textContainer.style.width = `${availableWidthForText}px`;
+                
+                const availableHeightForText = mainContent.clientHeight - (2 * mainContentPadding);
 
                 let currentFs = 80; 
                 const minFs = 16; 
                 const step = 1;
                 let iteration = 0;
-                const maxIterations = (currentFs - minFs) / step + 10;
-
-                Array.from(textContainer.children).forEach(child => {
-                    if (child instanceof HTMLElement) {
-                        child.style.width = 'auto'; 
-                        child.style.maxWidth = 'none';
-                    }
-                });
-                textContainer.style.width = `${finalAvailableWidth}px`;
+                const maxIterations = (currentFs - minFs) / step + 15;
 
                 while (currentFs >= minFs && iteration < maxIterations) {
                     textContainer.style.fontSize = `${currentFs}px`;
                     textContainer.style.lineHeight = currentFs > 30 ? '1.3' : '1.5';
-                    if (textContainer.scrollHeight <= availableHeightForText && textContainer.scrollWidth <= finalAvailableWidth) {
+                    if (textContainer.scrollHeight <= availableHeightForText && textContainer.scrollWidth <= availableWidthForText + 2) {
                         break; 
                     }
                     currentFs -= step;
@@ -343,7 +334,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                 textContainer.style.fontSize = `${finalFs}px`;
                 textContainer.style.lineHeight = finalFs > 30 ? '1.3' : '1.5';
             });
-        }, 50); // 50ms delay
+        }, 350);
 
     } else if (!isTextEnlarged && enlargedTextRef.current) {
         enlargedTextRef.current.style.fontSize = '';
@@ -352,11 +343,11 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
         setDynamicFontSize(null);
     }
 
-    return () => { // Cleanup function
+    return () => { 
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
         if (timeoutId) clearTimeout(timeoutId);
     };
-}, [isTextEnlarged, descriptionTextForDisplay, activity, isOpen, isGlobalToolsPanelOpen, showPrependedInstruction]);
+  }, [isTextEnlarged, descriptionTextForDisplay, activity, isOpen, isGlobalToolsPanelOpen, showPrependedInstruction]);
 
 
   const handleThematicDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => setCurrentThematicDescription(e.target.value);
@@ -370,24 +361,34 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
     if (isThematicEditing && !isEditModeActive) { 
         onSaveTemporaryEdit(activity.id, currentThematicDescription); // Use ID
     }
-    // ... (reset other states as before) ...
-    setIsThematicEditing(false); setIsTextEnlarged(false); setDynamicFontSize(null); setShowAllDetailsInModal(false); setShowPrependedInstruction(false);
-    if (enlargedTextRef.current) { enlargedTextRef.current.style.fontSize = ''; enlargedTextRef.current.style.lineHeight = ''; }
-    setShowSuggestButtonContainer(false); setIsAdaptationOptionsPopupOpen(false); setPromptMessage(null); setShareMessage(null);
+    setIsThematicEditing(false); 
+    setIsTextEnlarged(false); 
+    setDynamicFontSize(null); 
+    setShowAllDetailsInModal(false); 
+    setShowPrependedInstruction(false);
+    if (enlargedTextRef.current) { 
+        enlargedTextRef.current.style.fontSize = ''; 
+        enlargedTextRef.current.style.lineHeight = ''; 
+        enlargedTextRef.current.style.width = ''; // Ensure width is cleared on close too
+    }
+    setShowSuggestButtonContainer(false); 
+    setIsAdaptationOptionsPopupOpen(false); 
+    setPromptMessage(null); 
+    setShareMessage(null);
     onClose();
   }, [isThematicEditing, isEditModeActive, currentThematicDescription, onSaveTemporaryEdit, onClose, activity?.id]);
 
-  useEffect(() => { /* ... existing escape key logic ... */ 
+  useEffect(() => { 
     const handleKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') { if (isAdaptationOptionsPopupOpen) setIsAdaptationOptionsPopupOpen(false); else handleClose(); } };
     if (isOpen) { document.addEventListener('keydown', handleKeyDown); }
     return () => { document.removeEventListener('keydown', handleKeyDown); };
   }, [isOpen, handleClose, isAdaptationOptionsPopupOpen]);
 
-  const toggleFlashcardFlip = (index: number) => { /* ... existing logic ... */ 
+  const toggleFlashcardFlip = (index: number) => { 
     setFlippedCardIndices(prev => { const newSet = new Set(prev); if (newSet.has(index)) newSet.delete(index); else newSet.add(index); return newSet; });
   };
 
-  const eliminateFlashcard = (originalIndex: number) => { /* ... existing logic ... */ 
+  const eliminateFlashcard = (originalIndex: number) => { 
     setEliminatingCardIndex(originalIndex);
     setTimeout(() => {
       setEliminatedCardIndices(prev => new Set(prev).add(originalIndex)); setFlashcardScore(prev => prev + 1);
@@ -396,7 +397,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
     }, 300);
   };
 
-  const resetFlashcards = () => { /* ... existing logic ... */ 
+  const resetFlashcards = () => { 
     setFlippedCardIndices(new Set()); setEliminatedCardIndices(new Set()); setFlashcardScore(0); setEliminatingCardIndex(null);
   };
 
@@ -414,13 +415,13 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
 
   if (!isOpen || !activity) return null;
 
-  const allTagsDisplayOrder: (keyof ActivityTags)[] = [ /* ... existing array ... */ 
+  const allTagsDisplayOrder: (keyof ActivityTags)[] = [
     'main_category', 'sub_category', 'cefr_level', 'group_size', 
     'preparation_required', 'materials_resources', 'activity_type', 
     'classroom_community_bonding', 'sensitivity_warning', 'thematically_adaptable',
     'teacher_instruction' 
   ];
-  const tagColors: Record<string, string> = { /* ... existing colors ... */ 
+  const tagColors: Record<string, string> = { 
     main_category: 'bg-brandPrimary-100 text-brandPrimary-800', sub_category: 'bg-sky-100 text-sky-800', 
     cefr_level: 'bg-green-100 text-green-800', group_size: 'bg-indigo-100 text-indigo-800', 
     preparation_required: 'bg-brandAccent-100 text-brandAccent-800', materials_resources: 'bg-purple-100 text-purple-800', 
@@ -431,7 +432,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
   const formatTagName = (tagName: string): string => tagName.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
   const modalSizeClass = isTextEnlarged ? "w-11/12 max-w-7xl" : "w-full max-w-3xl";
   const canShowAdaptButtons = !isEditModeActive && !isTextEnlarged && !isThematicEditing;
-  const toolButtonsConfig = []; // ... (existing tool button config) ...
+  const toolButtonsConfig = []; 
   if (isDiceRelevant) toolButtonsConfig.push({ key: 'dice', emoji: '🎲', text: 'Dice', color: 'bg-brandPrimary-100 text-brandPrimary-700 hover:bg-brandPrimary-200 focus:ring-brandPrimary-300', action: () => handleToolButtonClick('dice'), title: 'Use Dice'});
   if (isTimerRelevant) toolButtonsConfig.push({ key: 'timer', emoji: '⏱️', text: 'Timer', color: 'bg-lime-100 text-lime-700 hover:bg-lime-200 focus:ring-lime-300', action: () => handleToolButtonClick('timer'), title: 'Use Timer' });
   if (isScoreRelevant) toolButtonsConfig.push({ key: 'score', emoji: '🏆', text: 'Scoreboard', color: 'bg-pink-100 text-pink-700 hover:bg-pink-200 focus:ring-pink-300', action: () => handleToolButtonClick('score'), title: 'Use Scoreboard'});
@@ -466,7 +467,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
     return null;
   };
 
-  const titleAreaContent = ( /* ... existing JSX ... */ 
+  const titleAreaContent = ( 
     <div className="flex-grow flex items-center space-x-2">
       {isEditModeActive && editableActivityData ? (
         <input type="text" id="activity-modal-title-edit" value={editableActivityData.title} onChange={handleEditModeTitleChange} className="text-3xl font-bold text-brandPrimary-700 flex-grow border-b-2 border-brandPrimary-300 focus:border-brandPrimary-500 outline-none py-1 mr-2" aria-label="Editable activity title" />
@@ -512,19 +513,25 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                         </button>
                     )}
                   </div>
-                  <div ref={isTextEnlarged ? enlargedTextRef : null} className={`${isTextEnlarged ? 'flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-brandPrimary-300 scrollbar-track-brandNeutral-100' : ''}`} style={isTextEnlarged && dynamicFontSize ? { fontSize: dynamicFontSize, lineHeight: (parseInt(dynamicFontSize) > 30 ? '1.3' : '1.5') } : {}}>
+                  <div 
+                    ref={isTextEnlarged ? enlargedTextRef : null} 
+                    className={`${isTextEnlarged 
+                                ? 'flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-brandPrimary-300 scrollbar-track-brandNeutral-100' 
+                                : 'w-full overflow-x-hidden'}`} 
+                    style={isTextEnlarged && dynamicFontSize ? { fontSize: dynamicFontSize, lineHeight: (parseInt(dynamicFontSize) > 30 ? '1.3' : '1.5') } : {}}
+                  >
                     {showPrependedInstruction && activity.tags.teacher_instruction && activity.tags.teacher_instruction.trim() !== '' && !isEditModeActive && (
                       <div className={`mb-3 p-3 bg-yellow-100 border border-yellow-200 rounded-md shadow-sm ${isTextEnlarged ? '' : 'text-sm'}`}>
                           <p className="font-semibold text-yellow-800 mb-1">Teacher Note:</p>
                           <p className="text-yellow-700 whitespace-pre-wrap">{activity.tags.teacher_instruction}</p>
                       </div>
                     )}
-                    {isEditModeActive && editableActivityData ? ( /* ... existing description textarea (edit mode) ... */ <textarea value={editableActivityData.full_description || ''} onChange={handleEditModeDescriptionChange} className="w-full p-3 border border-brandNeutral-300 rounded-md focus:ring-2 focus:ring-brandPrimary-500 focus:border-brandPrimary-500 resize-y text-base min-h-[150px] text-brandTextPrimary bg-brandNeutral-50" aria-label="Editable description (Edit Mode)"/>
-                    ) : isThematicEditing ? ( /* ... existing description textarea (thematic editing) ... */ <textarea value={currentThematicDescription} onChange={handleThematicDescriptionChange} className="w-full p-3 border border-brandNeutral-300 rounded-md focus:ring-2 focus:ring-brandPrimary-500 focus:border-brandPrimary-500 resize-y text-base min-h-[150px] text-brandTextPrimary bg-brandNeutral-50" aria-label="Editable description (Thematic Adaptation)"/>
-                    ) : ( /* ... existing description paragraph ... */ <p className={`text-brandTextSecondary whitespace-pre-wrap text-left ${isTextEnlarged ? '' : 'text-base leading-relaxed'}`}>{descriptionTextForDisplay}</p> )}
+                    {isEditModeActive && editableActivityData ? ( <textarea value={editableActivityData.full_description || ''} onChange={handleEditModeDescriptionChange} className="w-full p-3 border border-brandNeutral-300 rounded-md focus:ring-2 focus:ring-brandPrimary-500 focus:border-brandPrimary-500 resize-y text-base min-h-[150px] text-brandTextPrimary bg-brandNeutral-50" aria-label="Editable description (Edit Mode)"/>
+                    ) : isThematicEditing ? ( <textarea value={currentThematicDescription} onChange={handleThematicDescriptionChange} className="w-full p-3 border border-brandNeutral-300 rounded-md focus:ring-2 focus:ring-brandPrimary-500 focus:border-brandPrimary-500 resize-y text-base min-h-[150px] text-brandTextPrimary bg-brandNeutral-50" aria-label="Editable description (Thematic Adaptation)"/>
+                    ) : ( <p className={`text-brandTextSecondary whitespace-pre-wrap text-left ${isTextEnlarged ? '' : 'text-base leading-relaxed'}`}>{descriptionTextForDisplay}</p> )}
                   </div>
                   {/* Action buttons for description */}
-                  <div className="mt-4 flex flex-wrap gap-3 items-start relative"> {/* ... existing buttons: Adapt, Reset Temp, Enlarge, Tools ... */}
+                  <div className="mt-4 flex flex-wrap gap-3 items-start relative"> 
                       {!isEditModeActive && !isTextEnlarged && (
                           <div className="relative inline-flex flex-col" onMouseEnter={() => { if (canShowAdaptButtons) setShowSuggestButtonContainer(true);}} onMouseLeave={() => setShowSuggestButtonContainer(false)}>
                             <button onClick={handleThematicEditToggle} className={`w-full px-4 py-2 text-sm font-medium text-white transition-colors ${ isThematicEditing ? 'bg-brandAccent-500 hover:bg-brandAccent-600 rounded-md' : 'bg-brandPrimary-500 hover:bg-brandPrimary-600'} ${showSuggestButtonContainer ? 'rounded-t-md' : 'rounded-md'}`} aria-pressed={isThematicEditing} disabled={isAdaptationOptionsPopupOpen}>
@@ -554,7 +561,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                 </div>
                 
                 {/* Flashcards Section */}
-                {!isTextEnlarged && (activity.tags.flashcards && activity.tags.flashcards.length > 0) && ( /* ... existing flashcard rendering logic ... */ 
+                {!isTextEnlarged && (activity.tags.flashcards && activity.tags.flashcards.length > 0) && ( 
                   <div className="mt-6">
                     <div className="flex justify-between items-center mb-3"> <h3 className="text-xl font-semibold text-brandTextPrimary">Flashcards</h3> <div className="flex items-center space-x-3"> <span className="text-sm text-brandTextSecondary"> Score: {flashcardScore} / {totalFlashcards} </span> <button onClick={resetFlashcards} className="px-3 py-1 text-xs font-medium bg-brandNeutral-200 hover:bg-brandNeutral-300 text-brandTextPrimary rounded-md transition-colors"> Reset Deck </button> </div> </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -575,13 +582,13 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                 )}
 
                 {/* Details/Tags Section */}
-                {!isTextEnlarged && (!activity.tags.flashcards || activity.tags.flashcards.length === 0) && ( /* ... existing details rendering logic ... */ 
+                {!isTextEnlarged && (!activity.tags.flashcards || activity.tags.flashcards.length === 0) && ( 
                     <div>
                         <h3 className="text-xl font-semibold text-brandTextPrimary mb-3">Details</h3>
                         {isEditModeActive && editableActivityData ? ( <div className="space-y-2"> {allTagsDisplayOrder.map(tagKey => ( <div key={tagKey}>{renderTagEditor(tagKey)}</div> ))} </div>
                         ) : (
                           <>
-                            {showAllDetailsInModal ? ( /* ... Show all details logic ... */
+                            {showAllDetailsInModal ? ( 
                               <>
                                 <div className="flex flex-wrap gap-3">
                                     {allTagsDisplayOrder.map(tagKey => {
@@ -594,13 +601,12 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                                 </div>
                                 {activity.tags.teacher_instruction && activity.tags.teacher_instruction.trim() !== '' && ( <div className="mt-4"> <h4 className="text-md font-semibold text-brandTextPrimary mb-1">{formatTagName('teacher_instruction')}:</h4> <p className="text-sm text-brandTextSecondary whitespace-pre-wrap bg-brandNeutral-100 p-3 rounded-md">{activity.tags.teacher_instruction}</p> </div> )}
                               </>
-                            ) : ( /* ... Condensed details logic ... */
+                            ) : ( 
                                 <div className="space-y-2">
-                                    {(() => { /* ... combined category logic ... */
+                                    {(() => { 
                                         const mainCatVal = activity.tags.main_category; const subCategoryTagValue = activity.tags.sub_category; let combinedCategoryElements: string[] = [];
                                         if (mainCatVal && mainCatVal.trim() !== '' && mainCatVal.toLowerCase() !== 'none') combinedCategoryElements.push(mainCatVal);
                                         if (Array.isArray(subCategoryTagValue)) { const filteredSubs = subCategoryTagValue.map(s => String(s).trim()).filter(s => s !== '' && s.toLowerCase() !== 'none'); if (filteredSubs.length > 0) combinedCategoryElements.push(filteredSubs.join(', '));}
-                                        // The 'else if (typeof subCategoryTagValue === "string")' block was removed as it's typed as string[]
                                         const combinedCategory = combinedCategoryElements.join(' | ');
                                         if (combinedCategory && combinedCategory.trim() !== '') return ( <div className={`text-md px-3 py-1.5 rounded-lg ${tagColors['main_category'] || 'bg-brandPrimary-100 text-brandPrimary-800'} whitespace-normal break-words font-semibold`}> {combinedCategory} </div> );
                                         return null;
@@ -627,7 +633,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
 
         {/* Footer */}
         <div className="p-4 bg-brandNeutral-100 border-t border-brandNeutral-200 flex justify-between items-center flex-shrink-0">
-           <div> {/* Left aligned for share button */}
+           <div> 
                 <button
                   onClick={handleShareActivity}
                   className="px-4 py-2 text-sm bg-teal-500 text-white rounded-md hover:bg-teal-600 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-50 flex items-center space-x-2"
@@ -640,7 +646,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                 </button>
                 {shareMessage && <span className="ml-2 text-xs text-brandPrimary-600">{shareMessage}</span>}
             </div>
-            <div className="flex space-x-3"> {/* Right aligned for existing buttons */}
+            <div className="flex space-x-3"> 
                 {isEditModeActive && (
                     <button 
                         onClick={handleSaveChangesAndClose}
@@ -660,7 +666,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
       </div>
 
       {/* Adaptation Options Popup */}
-      {isAdaptationOptionsPopupOpen && ( /* ... existing popup JSX ... */ 
+      {isAdaptationOptionsPopupOpen && ( 
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[60] p-4" onClick={() => setIsAdaptationOptionsPopupOpen(false)}>
             <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg animate-slide-down" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="adaptation-options-popup-title">
             <div className="flex justify-between items-center mb-4"> <h4 id="adaptation-options-popup-title" className="text-lg font-semibold text-brandTextPrimary"> Adaptation Options </h4> <button onClick={() => setIsAdaptationOptionsPopupOpen(false)} className="text-brandNeutral-500 hover:text-brandNeutral-700 p-1 rounded-full hover:bg-brandNeutral-100" aria-label="Close adaptation options"> <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg> </button> </div>
