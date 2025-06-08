@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Classroom Activity Finder</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    /* Custom scrollbar for bright theme */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9; /* slate-100 or brandPageBg */
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #38bdf8; /* sky-400 or brandPrimary-400 */
+      border-radius: 10px;
+      border: 2px solid #f1f5f9; 
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #0ea5e9; /* sky-500 or brandPrimary-500 */
+    }
+    /* Focus ring for bright theme */
+    *:focus-visible {
+        outline: 2px solid #0ea5e9; /* brandPrimary-500 */
+        outline-offset: 2px;
+    }
+
+    @keyframes ping-very-subtle-kf {
+      75%, 100% {
+        transform: scale(1.15); 
+        opacity: 0;
+      }
+    }
+    @keyframes slide-down-kf { 
+      from {
+        opacity: 0;
+        transform: translateY(-10px) scaleY(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scaleY(1);
+      }
+    }
+    .animate-slide-down { 
+      animation: slide-down-kf 0.2s ease-out forwards;
+    }
+    @keyframes popover-appear-kf {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+    .animate-popover-appear {
+      animation: popover-appear-kf 0.15s ease-out forwards;
+    }
+    @keyframes pulse-glow-kf {
+      0% { box-shadow: 0 0 0 0px rgba(2, 132, 199, 0.0); } /* brandPrimary-600 (sky), transparent start */
+      50% { box-shadow: 0 0 8px 10px rgba(2, 132, 199, 0.3); } /* brandPrimary-600 (sky), with glow */
+      100% { box-shadow: 0 0 0 0px rgba(2, 132, 199, 0.0); } /* brandPrimary-600 (sky), transparent end */
+    }
+    .animate-pulse-glow {
+      animation: pulse-glow-kf 1.5s ease-out 1; /* Play once */
+    }
+    @keyframes shrink-fade-out-kf { 
+      0% { 
+        opacity: 1; 
+        transform: scale(1); 
+      } 
+      100% { 
+        opacity: 0; 
+        transform: scale(0.5); 
+      } 
+    }
+    .animate-shrink-fade-out { 
+      animation: shrink-fade-out-kf 0.3s ease-out forwards; 
+    }
+
+  </style>
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brandPrimary: { // Sky Blue
+            50: '#f0f9ff',
+            100: '#e0f2fe',
+            200: '#bae6fd',
+            300: '#7dd3fc',
+            400: '#38bdf8',
+            500: '#0ea5e9',
+            600: '#0284c7',
+            700: '#0369a1',
+            800: '#075985',
+            900: '#0c4a6e',
+          },
+          brandAccent: { // Amber
+            50: '#fffbeb',
+            100: '#fef3c7',
+            200: '#fde68a',
+            300: '#fcd34d',
+            400: '#fbbf24',
+            500: '#f59e0b',
+            600: '#d97706',
+            700: '#b45309',
+            800: '#92400e',
+            900: '#78350f',
+          },
+          brandNeutral: { // Slate
+            50: '#f8fafc',
+            100: '#f1f5f9',
+            200: '#e2e8f0',
+            300: '#cbd5e1',
+            400: '#94a3b8',
+            500: '#64748b',
+            600: '#475569',
+            700: '#334155',
+            800: '#1e293b',
+            900: '#0f172a',
+          },
+          brandPageBg: '#f8fafc', // slate-50 for page background
+          brandTextPrimary: '#1e293b', // slate-800 for main text
+          brandTextSecondary: '#475569', // slate-600 for secondary text
+          brandFunctionalRed: '#ef4444', 
+        },
+        animation: {
+          'ping-slow': 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite',
+          'ping-very-subtle': 'ping-very-subtle-kf 3.5s cubic-bezier(0, 0, 0.2, 1) infinite',
+          'slide-down': 'slide-down-kf 0.2s ease-out forwards', 
+          'popover-appear': 'popover-appear-kf 0.15s ease-out forwards',
+          'pulse-glow': 'pulse-glow-kf 1.5s ease-out 1',
+          'shrink-fade-out': 'shrink-fade-out-kf 0.3s ease-out forwards',
+        }
+      }
+    }
+  }
+</script>
+<link rel="stylesheet" href="/index.css">
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.6.2",
+    "react/": "https://esm.sh/react@^19.1.0/"
+  }
+}
+</script>
+  <script type="module" crossorigin src="/assets/index-Do11i1FZ.js"></script>
+</head>
+<body class="bg-brandPageBg text-brandTextPrimary">
+  <div id="root"></div>
+</body>
+</html>
