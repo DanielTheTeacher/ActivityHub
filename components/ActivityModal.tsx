@@ -177,7 +177,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
     if (tool === 'score') setShowScoreCounterGlobal(true);
   };
 
-  const handleGenerateAndCopyPromptAndRedirect = async () => { /* ... existing logic ... */ 
+  const handleGenerateAndCopyPromptAndRedirect = async () => {
     let prompt = "Please modify the description of this classroom activity. I want the following changes:";
     let changesRequested = false;
     if (adaptToTheme && themeInput.trim()) { prompt += `\n\n- Change the text so that it is relevant for the following theme: ${themeInput.trim()}`; changesRequested = true; }
@@ -188,7 +188,11 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
     try {
       await navigator.clipboard.writeText(prompt);
       setPromptMessage("Prompt copied! Redirecting to Copilot...");
-      setTimeout(() => { setIsAdaptationOptionsPopupOpen(false); window.location.href = 'https://copilot.microsoft.com'; setPromptMessage(null); }, 500); 
+      setTimeout(() => { 
+        setIsAdaptationOptionsPopupOpen(false); 
+        window.open('https://copilot.microsoft.com', '_blank', 'noopener,noreferrer'); 
+        setPromptMessage(null); 
+      }, 500); 
     } catch (err) { console.error('Failed to copy prompt: ', err); setPromptMessage("Failed to copy. Please try again."); setTimeout(() => setPromptMessage(null), 3000); }
   };
 

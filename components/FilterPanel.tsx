@@ -152,7 +152,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             alt="Daniel the Teacher Logo" 
             className="h-24 w-auto mb-3"
           />
-          <h1 className="text-xl font-bold text-brandPrimary-700 text-center">Daniel the Teacher's Activity Hub</h1>
+          <h1 className="text-lg font-bold text-brandPrimary-700 text-center">Daniel the Teacher's Activity Hub</h1>
         </div>
       </div>
 
