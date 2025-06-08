@@ -1,0 +1,6 @@
+{
+  "name": "Daniel the Teacher's Activity Hub",
+  "description": "A web application to browse, filter, and adapt classroom activities. Activities are loaded from a JSON file, and users can dynamically filter them based on various criteria. Thematically adaptable activities allow for temporary in-browser description editing.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
