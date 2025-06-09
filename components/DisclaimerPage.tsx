@@ -20,7 +20,7 @@ const DisclaimerPage: React.FC = () => {
         </div>
         
         <img 
-            src="/assets/daniel_the_teacher_logo.png" 
+            src="../assets/daniel_the_teacher_logo.png" 
             alt="Daniel the Teacher Logo" 
             className="h-28 w-auto mb-5 mx-auto"
         />

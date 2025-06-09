@@ -148,7 +148,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
       <div className="p-6 border-b border-brandPrimary-200 pb-4 flex-shrink-0">
         <div className="flex flex-col items-center mb-4">
           <img 
-            src="/assets/daniel_the_teacher_logo.png" 
+            src="../assets/daniel_the_teacher_logo.png" 
             alt="Daniel the Teacher Logo" 
             className="h-24 w-auto mb-3"
           />
