@@ -1,17 +1,16 @@
 
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Activity, ActivityTags, FilterOptions, Filters, CefrRangeFilter } from './types.ts';
-import FilterPanel from './components/FilterPanel.tsx';
-import ActivityCard from './components/ActivityCard.tsx';
-import LoadingSpinner from './components/shared/LoadingSpinner.tsx';
-import NoResultsFound from './components/shared/NoResultsFound.tsx';
-import ActivityModal from './components/ActivityModal.tsx';
-import GlobalToolsPanel from './components/shared/GlobalToolsPanel.tsx';
-import ConfirmationDialog from './components/shared/ConfirmationDialog.tsx';
+import { Activity, ActivityTags, FilterOptions, Filters, CefrRangeFilter } from './types.js';
+import FilterPanel from './components/FilterPanel.js';
+import ActivityCard from './components/ActivityCard.js';
+import LoadingSpinner from './components/shared/LoadingSpinner.js';
+import NoResultsFound from './components/shared/NoResultsFound.js';
+import ActivityModal from './components/ActivityModal.js';
+import GlobalToolsPanel from './components/shared/GlobalToolsPanel.js';
+import ConfirmationDialog from './components/shared/ConfirmationDialog.js';
 import { useSearchParams, Routes, Route, useParams } from 'react-router-dom';
-import ActivityEmbedView from './components/ActivityEmbedView.tsx';
-import DisclaimerPage from './components/DisclaimerPage.tsx'; // Added import
+import ActivityEmbedView from './components/ActivityEmbedView.js';
+import DisclaimerPage from './components/DisclaimerPage.js'; // Added import
 
 const CEFR_LEVELS_ORDERED = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 

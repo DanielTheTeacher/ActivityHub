@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
-import { FilterOptions, Filters, CefrRangeFilter } from '../types.ts';
+import { FilterOptions, Filters, CefrRangeFilter } from '../types.js';
 // import Dropdown from './shared/Dropdown'; // Removed Dropdown for CEFR
-import CefrRangeSlider from './shared/CefrRangeSlider.tsx'; // Added CefrRangeSlider
-import CheckboxGroup from './shared/CheckboxGroup.tsx';
-import Dropdown from './shared/Dropdown.tsx'; // Keep for other dropdowns
+import CefrRangeSlider from './shared/CefrRangeSlider.js'; // Added CefrRangeSlider
+import CheckboxGroup from './shared/CheckboxGroup.js';
+import Dropdown from './shared/Dropdown.js'; // Keep for other dropdowns
 import { Link } from 'react-router-dom'; // Added import for Link
 
 interface FilterPanelProps {
