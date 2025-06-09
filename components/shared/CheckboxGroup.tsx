@@ -27,12 +27,24 @@ const CheckboxGroup: React.FC<CheckboxGroupProps> = ({
     return null;
   }
 
+  const isGroupSize = name === 'group_size';
+
   return (
     <div>
       <label className="block text-sm font-medium text-brandTextSecondary mb-2">{label}</label>
-      <div className="space-y-1 max-h-48 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-brandPrimary-400 scrollbar-track-brandNeutral-100">
+      <div className={`
+        ${isGroupSize ? 'flex flex-wrap gap-x-4 gap-y-1' : 'space-y-1'}
+        max-h-48 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-brandPrimary-400 scrollbar-track-brandNeutral-100
+      `}>
         {options.map(option => (
-          <label key={option} className="flex items-center space-x-2 text-sm text-brandTextPrimary hover:bg-brandPrimary-50 p-1 rounded transition-colors duration-150">
+          <label 
+            key={option} 
+            className={`flex items-center space-x-2 text-sm text-brandTextPrimary hover:bg-brandPrimary-50 p-1 rounded transition-colors duration-150 ${isGroupSize ? 'w-auto' : ''}`}
+            role="checkbox"
+            aria-checked={selectedOptions.includes(option)}
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCheckboxChange(option); }}
+          >
             <input
               type="checkbox"
               name={name}

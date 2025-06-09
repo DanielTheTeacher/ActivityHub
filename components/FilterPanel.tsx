@@ -262,7 +262,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               onChange={handleSingleCheckboxChange}
               className="rounded border-brandNeutral-300 text-brandPrimary-600 bg-brandNeutral-50 shadow-sm focus:border-brandPrimary-500 focus:ring focus:ring-brandPrimary-500 focus:ring-opacity-50"
             />
-            <span>Classroom Community Bonding</span>
+            <span>Relationship building activities</span>
           </label>
         </div>
 
@@ -275,7 +275,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               onChange={handleSingleCheckboxChange}
               className="rounded border-brandNeutral-300 text-brandPrimary-600 bg-brandNeutral-50 shadow-sm focus:border-brandPrimary-500 focus:ring focus:ring-brandPrimary-500 focus:ring-opacity-50"
             />
-            <span>Only Thematically Adaptable</span>
+            <span>Can easily be adapted to another topic</span>
           </label>
         </div>
 
