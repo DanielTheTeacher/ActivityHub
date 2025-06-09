@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Activity, ActivityTags, FilterOptions, Flashcard } from '../types'; // Added Flashcard
-import CheckboxGroup from './shared/CheckboxGroup'; 
+import { Activity, ActivityTags, FilterOptions, Flashcard } from '../types.ts'; // Added Flashcard
+import CheckboxGroup from './shared/CheckboxGroup.tsx'; 
 
 type StringArrayActivityTagKeys = {
   [K in keyof ActivityTags]: ActivityTags[K] extends string[] ? K : never;

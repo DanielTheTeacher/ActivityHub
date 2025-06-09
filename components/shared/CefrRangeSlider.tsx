@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { CefrRangeFilter } from '../../types';
+import { CefrRangeFilter } from '../../types.ts';
 
 // Define the canonical order of CEFR levels
 const CEFR_LEVELS_ORDERED = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];

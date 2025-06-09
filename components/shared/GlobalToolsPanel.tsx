@@ -1,10 +1,11 @@
+
 import React from 'react';
-import DiceRoller from './DiceRoller';
-import Timer from './Timer';
-import ScoreCounter from './ScoreCounter';
-import SpinnyWheel from './SpinnyWheel';
-import RandomTeamGenerator from './RandomTeamGenerator'; // Added
-import { GlobalToolsPanelProps } from '../../types'; 
+import DiceRoller from './DiceRoller.tsx';
+import Timer from './Timer.tsx';
+import ScoreCounter from './ScoreCounter.tsx';
+import SpinnyWheel from './SpinnyWheel.tsx';
+import RandomTeamGenerator from './RandomTeamGenerator.tsx'; // Added
+import { GlobalToolsPanelProps } from '../../types.ts'; 
 
 const GlobalToolsPanel: React.FC<GlobalToolsPanelProps> = ({
   isOpen,
