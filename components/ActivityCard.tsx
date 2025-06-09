@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Activity, ActivityTags, Flashcard } from '../types.js'; // Added Flashcard for type safety if needed, though not directly used in rendering here
+import { Activity, ActivityTags, Flashcard } from '../types'; // Added Flashcard for type safety if needed, though not directly used in rendering here
 
 interface ActivityCardProps {
   activity: Activity;

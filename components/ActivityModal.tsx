@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Activity, ActivityTags, FilterOptions, Flashcard } from '../types.js'; // Added Flashcard
-import CheckboxGroup from './shared/CheckboxGroup.js'; 
+import { Activity, ActivityTags, FilterOptions, Flashcard } from '../types'; // Added Flashcard
+import CheckboxGroup from './shared/CheckboxGroup'; 
 
 type StringArrayActivityTagKeys = {
   [K in keyof ActivityTags]: ActivityTags[K] extends string[] ? K : never;
@@ -119,7 +119,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
 
 
   const DEFAULT_FONT_SIZE = "16px"; 
-  const TOOLS_PANEL_WIDTH = 320; // Assumed width of the global tools panel, matches App.js lg:mr-[320px]
+  const TOOLS_PANEL_WIDTH = 320; // Assumed width of the global tools panel, matches App.tsx lg:mr-[320px]
 
 
   useEffect(() => {

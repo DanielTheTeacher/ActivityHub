@@ -1,8 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Activity, ActivityTags, FilterOptions, Flashcard } from '../types.js';
-import LoadingSpinner from './shared/LoadingSpinner.js';
+import { Activity, ActivityTags, FilterOptions, Flashcard } from '../types';
+import LoadingSpinner from './shared/LoadingSpinner';
 
 // Reusable TagBadgeModal from ActivityModal (or a simplified version)
 const TagBadgeDisplay: React.FC<{ label: string; value?: string | boolean | string[]; color?: string }> = ({ label, value, color = 'bg-brandNeutral-200 text-brandNeutral-700' }) => {
