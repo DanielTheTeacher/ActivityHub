@@ -1,0 +1,199 @@
+[
+  {
+    "title": "Sample FuelBox Question",
+    "full_description": "This is a sample question to spark conversation. Discuss freely and explore different perspectives.",
+    "tags": {
+      "main_category": "FuelBox",
+      "sub_category": ["Sample Category"],
+      "cefr_level": [],
+      "group_size": ["Pairs", "Groups", "Open Class (Whole Class)"],
+      "preparation_required": "No Preparation (On-the-spot)",
+      "materials_resources": [],
+      "sensitivity_warning": false,
+      "activity_type": ["Discussion & Debate", "Icebreaker"],
+      "classroom_community_bonding": true,
+      "thematically_adaptable": true,
+      "teacher_instruction": "This is just a sample. Encourage open discussion."
+    }
+  },
+  {
+    "title": "If you could have any superpower, what would it be and why?",
+    "full_description": "A question to spark conversation. Discuss freely.",
+    "tags": {
+      "main_category": "FuelBox",
+      "sub_category": ["Icebreakers & Fun"],
+      "cefr_level": [],
+      "group_size": ["Pairs", "Groups", "Open Class (Whole Class)"],
+      "preparation_required": "No Preparation (On-the-spot)",
+      "materials_resources": [],
+      "sensitivity_warning": false,
+      "activity_type": ["Discussion & Debate", "Icebreaker"],
+      "classroom_community_bonding": true,
+      "thematically_adaptable": true,
+      "teacher_instruction": "Encourage imaginative answers and follow-up questions about how the superpower would be used."
+    }
+  },
+  {
+    "title": "What's the most adventurous thing you've ever done?",
+    "full_description": "A question to spark conversation. Discuss freely.",
+    "tags": {
+      "main_category": "FuelBox",
+      "sub_category": ["Icebreakers & Fun"],
+      "cefr_level": [],
+      "group_size": ["Pairs", "Groups"],
+      "preparation_required": "No Preparation (On-the-spot)",
+      "materials_resources": [],
+      "sensitivity_warning": false,
+      "activity_type": ["Information Exchange", "Storytelling"],
+      "classroom_community_bonding": true,
+      "thematically_adaptable": false
+    }
+  },
+  {
+    "title": "If you could only eat one food for the rest of your life, what would it be?",
+    "full_description": "A question to spark conversation. Discuss freely.",
+    "tags": {
+      "main_category": "FuelBox",
+      "sub_category": ["Icebreakers & Fun"],
+      "cefr_level": [],
+      "group_size": ["Pairs", "Groups"],
+      "preparation_required": "No Preparation (On-the-spot)",
+      "materials_resources": [],
+      "sensitivity_warning": false,
+      "activity_type": ["Discussion & Debate"],
+      "classroom_community_bonding": true,
+      "thematically_adaptable": false
+    }
+  },
+  {
+    "title": "What's a skill you'd like to learn and why?",
+    "full_description": "A question to spark conversation. Discuss freely.",
+    "tags": {
+      "main_category": "FuelBox",
+      "sub_category": ["Icebreakers & Fun"],
+      "cefr_level": [],
+      "group_size": ["Pairs", "Groups"],
+      "preparation_required": "No Preparation (On-the-spot)",
+      "materials_resources": [],
+      "sensitivity_warning": false,
+      "activity_type": ["Information Exchange", "Goal Setting"],
+      "classroom_community_bonding": true,
+      "thematically_adaptable": false
+    }
+  },
+  {
+    "title": "What does 'success' mean to you personally?",
+    "full_description": "A question to spark conversation. Discuss freely.",
+    "tags": {
+      "main_category": "FuelBox",
+      "sub_category": ["Deeper Thoughts & Reflections"],
+      "cefr_level": [],
+      "group_size": ["Pairs", "Groups", "Individual"],
+      "preparation_required": "No Preparation (On-the-spot)",
+      "materials_resources": [],
+      "sensitivity_warning": true,
+      "activity_type": ["Discussion & Debate", "Reflection"],
+      "classroom_community_bonding": true,
+      "thematically_adaptable": false,
+      "teacher_instruction": "Encourage students to think beyond just financial or career success."
+    }
+  },
+  {
+    "title": "What are you most grateful for in your life right now?",
+    "full_description": "A question to spark conversation. Discuss freely.",
+    "tags": {
+      "main_category": "FuelBox",
+      "sub_category": ["Deeper Thoughts & Reflections"],
+      "cefr_level": [],
+      "group_size": ["Pairs", "Groups", "Individual"],
+      "preparation_required": "No Preparation (On-the-spot)",
+      "materials_resources": [],
+      "sensitivity_warning": false,
+      "activity_type": ["Information Exchange", "Reflection"],
+      "classroom_community_bonding": true,
+      "thematically_adaptable": false
+    }
+  },
+  {
+    "title": "If you could change one thing about the world, what would it be?",
+    "full_description": "A question to spark conversation. Discuss freely.",
+    "tags": {
+      "main_category": "FuelBox",
+      "sub_category": ["Deeper Thoughts & Reflections"],
+      "cefr_level": [],
+      "group_size": ["Pairs", "Groups"],
+      "preparation_required": "No Preparation (On-the-spot)",
+      "materials_resources": [],
+      "sensitivity_warning": false,
+      "activity_type": ["Discussion & Debate", "Problem Solving"],
+      "classroom_community_bonding": true,
+      "thematically_adaptable": true
+    }
+  },
+  {
+    "title": "If you could invent something new, what problem would it solve?",
+    "full_description": "A question to spark conversation. Discuss freely.",
+    "tags": {
+      "main_category": "FuelBox",
+      "sub_category": ["Creative & Hypothetical"],
+      "cefr_level": [],
+      "group_size": ["Pairs", "Groups", "Individual"],
+      "preparation_required": "No Preparation (On-the-spot)",
+      "materials_resources": ["Paper/Pencil"],
+      "sensitivity_warning": false,
+      "activity_type": ["Brainstorming", "Problem Solving"],
+      "classroom_community_bonding": true,
+      "thematically_adaptable": true
+    }
+  },
+  {
+    "title": "If animals could talk, which species would be the rudest?",
+    "full_description": "A question to spark conversation. Discuss freely.",
+    "tags": {
+      "main_category": "FuelBox",
+      "sub_category": ["Creative & Hypothetical"],
+      "cefr_level": [],
+      "group_size": ["Pairs", "Groups"],
+      "preparation_required": "No Preparation (On-the-spot)",
+      "materials_resources": [],
+      "sensitivity_warning": false,
+      "activity_type": ["Discussion & Debate", "Brainstorming"],
+      "classroom_community_bonding": true,
+      "thematically_adaptable": true
+    }
+  },
+  {
+    "title": "You find a wallet on the street with a lot of money and ID. What do you do?",
+    "full_description": "A question to spark conversation. Discuss freely.",
+    "tags": {
+      "main_category": "FuelBox",
+      "sub_category": ["Dilemmas & Decisions"],
+      "cefr_level": [],
+      "group_size": ["Pairs", "Groups"],
+      "preparation_required": "No Preparation (On-the-spot)",
+      "materials_resources": [],
+      "sensitivity_warning": true,
+      "activity_type": ["Discussion & Debate", "Problem Solving"],
+      "classroom_community_bonding": false,
+      "thematically_adaptable": false,
+      "teacher_instruction": "Focus discussion on ethical considerations and potential consequences of different actions."
+    }
+  },
+  {
+    "title": "Your best friend tells you a secret they cheated on an important test. Do you tell the teacher?",
+    "full_description": "A question to spark conversation. Discuss freely.",
+    "tags": {
+      "main_category": "FuelBox",
+      "sub_category": ["Dilemmas & Decisions"],
+      "cefr_level": [],
+      "group_size": ["Pairs", "Groups"],
+      "preparation_required": "No Preparation (On-the-spot)",
+      "materials_resources": [],
+      "sensitivity_warning": true,
+      "activity_type": ["Discussion & Debate", "Role-play & Acting"],
+      "classroom_community_bonding": false,
+      "thematically_adaptable": false,
+      "teacher_instruction": "Explore the conflict between loyalty and honesty. Discuss potential outcomes for all involved."
+    }
+  }
+]
