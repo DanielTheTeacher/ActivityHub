@@ -3,12 +3,15 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 const DisclaimerPage: React.FC = () => {
+  // Construct the logo path using BASE_URL to ensure it works in dev and prod
+  const logoSrc = `${import.meta.env.BASE_URL}assets/daniel_the_teacher_logo.png`;
+
   return (
     <div className="min-h-screen bg-brandPageBg py-8 px-4 sm:px-6 lg:px-8 flex justify-center">
       <div className="max-w-3xl w-full bg-white shadow-xl rounded-lg p-6 md:p-8 space-y-4">
         <div className="mb-6">
-            <Link 
-                to="/" 
+            <Link
+                to="/"
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-brandPrimary-600 hover:bg-brandPrimary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brandPrimary-500 transition-colors"
                 aria-label="Back to activities"
             >
@@ -18,16 +21,16 @@ const DisclaimerPage: React.FC = () => {
                 Back to Activities
             </Link>
         </div>
-        
-        <img 
-            src="../assets/daniel_the_teacher_logo.png" 
-            alt="Daniel the Teacher Logo" 
+
+        <img
+            src={logoSrc}
+            alt="Daniel the Teacher Logo"
             className="h-28 w-auto mb-5 mx-auto"
         />
         <h1 className="text-2xl font-bold text-brandPrimary-700 mb-6 text-center">
           Disclaimer and Information
         </h1>
-        
+
         <h2 className="text-xl font-semibold text-brandTextPrimary mt-4">Disclaimer</h2>
         <p className="text-brandTextSecondary text-sm leading-relaxed">
           Aktiviteter er hovedsakelig basert på <i>700 classroom activities: conversation, functions, grammar, vocabulary</i>, av Seymour, D., & Popova, M. Disse aktivitetene er skrevet om i språket, og tilpasset en moderne og norsk kulturell kontekst, samt tilpasset VG1 yrkesfag. Hvorvidt disse er endret nok til å regnes som et nytt åndsverk er uavklart, så derfor bør ikke denne siden distribueres utenfor lærer-fellesskapet ved Kristiansund VGS.
