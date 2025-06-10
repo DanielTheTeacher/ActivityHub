@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Activity, ActivityTags, FilterOptions, Filters, CefrRangeFilter } from './types';
 import FilterPanel from './components/FilterPanel';
@@ -212,10 +211,16 @@ const App: React.FC = () => {
       setIsLoading(true);
       setError(null);
       try {
+        // Construct paths using import.meta.env.BASE_URL
+        // This assumes your JSON files will be in the `public/data/` directory
+        const activitiesPath = `${import.meta.env.BASE_URL}data/activities.json`;
+        const skillsPath = `${import.meta.env.BASE_URL}data/skills.json`;
+        const fuelboxPath = `${import.meta.env.BASE_URL}data/fuelbox_questions.json`;
+
         const [activitiesResponse, skillsResponse, fuelboxResponse] = await Promise.all([
-          fetch('./data/activities.json'),
-          fetch('./data/skills.json'),
-          fetch('./data/fuelbox_questions.json')
+          fetch(activitiesPath),
+          fetch(skillsPath),
+          fetch(fuelboxPath)
         ]);
 
         if (!activitiesResponse.ok) {
@@ -465,7 +470,7 @@ const App: React.FC = () => {
       searchTerm: '', main_category: '', sub_category: '',
       cefr_level: { min: defaultMinCefr, max: defaultMaxCefr },
       group_size: [], preparation_required: '', materials_resources: [],
-      avoid_sensitive_topics: false, 
+      avoid_sensitive_topics: false,
       activity_type: [],
       classroom_community_bonding: false,
       thematically_adaptable: false,
