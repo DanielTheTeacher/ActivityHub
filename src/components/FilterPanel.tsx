@@ -141,6 +141,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
   const displayCategories = [...orderedMainCategories, ...otherUnorderedCategories];
 
+  // Construct the logo path using BASE_URL
+  const logoSrc = `${import.meta.env.BASE_URL}assets/daniel_the_teacher_logo.png`;
 
   return (
     <aside className="w-full lg:w-80 xl:w-96 bg-white shadow-xl lg:sticky lg:top-0 lg:h-screen border-r border-brandNeutral-200 flex flex-col z-40 overflow-y-auto overflow-x-visible scrollbar-thin scrollbar-thumb-brandPrimary-400 scrollbar-track-brandNeutral-100">
@@ -148,7 +150,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
       <div className="p-6 border-b border-brandPrimary-200 pb-4 flex-shrink-0">
         <div className="flex flex-col items-center mb-4">
           <img 
-            src="../assets/daniel_the_teacher_logo.png" 
+            src={logoSrc} 
             alt="Daniel the Teacher Logo" 
             className="h-24 w-auto mb-3"
           />
