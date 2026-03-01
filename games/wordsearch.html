@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Search – Vocabulary Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        * { -webkit-tap-highlight-color: transparent; user-select: none; }
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        .pop-in { animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+        @keyframes celebrate { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+        /* Grid cell */
+        .ws-cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            text-transform: uppercase;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, transform 0.1s;
+            font-size: var(--cell-font);
+            line-height: 1;
+        }
+        .ws-cell:hover { background: rgba(99, 102, 241, 0.15); }
+        .ws-cell.selecting { background: rgba(99, 102, 241, 0.35); color: #fff; transform: scale(1.08); }
+        .ws-cell.found { background: rgba(34, 197, 94, 0.25); color: #4ade80; }
+        .ws-cell.found-flash { animation: popIn 0.3s ease-out; }
+
+        /* Word list */
+        .word-chip { transition: all 0.2s; }
+        .word-chip.found {
+            text-decoration: line-through;
+            opacity: 0.4;
+        }
+
+        /* Win banner */
+        .win-banner { animation: celebrate 0.6s ease-in-out; }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans antialiased min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- ======================== SCREEN: SETUP ======================== -->
+    <div id="screen-setup" class="w-full max-w-md space-y-6 fade-in">
+        <!-- Header -->
+        <div class="text-center space-y-1">
+            <h1 class="text-4xl font-black tracking-tight">
+                <span class="text-emerald-400">WORD</span> <span class="text-indigo-400">SEARCH</span>
+            </h1>
+            <p class="text-gray-500 text-sm">Find all hidden words in the grid</p>
+        </div>
+
+        <!-- Vocabulary Source -->
+        <div class="bg-gray-900 rounded-2xl p-5 space-y-4 border border-gray-800">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Vocabulary Source</h2>
+
+            <!-- Source Toggle -->
+            <div class="flex rounded-xl bg-gray-800 p-1">
+                <button id="btn-source-sheets" onclick="setSource('sheets')" class="flex-1 py-2 text-sm font-semibold rounded-lg transition-all bg-indigo-600 text-white">
+                    Google Sheets
+                </button>
+                <button id="btn-source-custom" onclick="setSource('custom')" class="flex-1 py-2 text-sm font-semibold rounded-lg transition-all text-gray-400 hover:text-white">
+                    Custom Words
+                </button>
+            </div>
+
+            <!-- Sheets Source -->
+            <div id="source-sheets" class="space-y-3">
+                <!-- Set Collection Dropdown -->
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Set Collection</label>
+                    <select id="select-collection" onchange="onCollectionChange()" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                        <option value="">Loading collections...</option>
+                    </select>
+                </div>
+
+                <!-- Vocabulary Set Dropdown -->
+                <div id="vocab-set-container" class="hidden">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Vocabulary Set</label>
+                    <select id="select-vocab-set" onchange="onVocabSetChange()" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                        <option value="">Select a set...</option>
+                    </select>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div id="sheets-loading" class="hidden text-center py-2">
+                    <div class="inline-block w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span class="text-xs text-gray-500 ml-2">Loading...</span>
+                </div>
+
+                <!-- Word Count Badge -->
+                <div id="word-count-badge" class="hidden">
+                    <span class="inline-flex items-center gap-1.5 bg-indigo-900/40 text-indigo-300 text-xs font-medium px-3 py-1 rounded-full border border-indigo-800/50">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
+                        <span id="word-count-text">0 words loaded</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Custom Source -->
+            <div id="source-custom" class="hidden space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Enter words (comma-separated)</label>
+                    <textarea id="custom-words" rows="4" placeholder="apple, banana, cherry, dog, elephant, forest..."
+                        class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none"
+                        oninput="onCustomWordsChange()"></textarea>
+                </div>
+                <div id="custom-word-count" class="hidden">
+                    <span class="inline-flex items-center gap-1.5 bg-emerald-900/40 text-emerald-300 text-xs font-medium px-3 py-1 rounded-full border border-emerald-800/50">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
+                        <span id="custom-count-text">0 words</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid Settings -->
+        <div class="bg-gray-900 rounded-2xl p-5 space-y-4 border border-gray-800">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Puzzle Settings</h2>
+
+            <!-- Word Count -->
+            <div class="flex items-center justify-between">
+                <span class="text-sm text-gray-400">Words to find</span>
+                <div class="flex items-center gap-3">
+                    <button onclick="adjustWordCount(-1)" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm font-bold transition flex items-center justify-center border border-gray-700">−</button>
+                    <span id="puzzle-word-count" class="text-xl font-bold text-emerald-400 w-6 text-center">8</span>
+                    <button onclick="adjustWordCount(1)" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm font-bold transition flex items-center justify-center border border-gray-700">+</button>
+                </div>
+            </div>
+
+            <!-- Grid Size -->
+            <div class="flex items-center justify-between pt-2 border-t border-gray-800">
+                <span class="text-sm text-gray-400">Grid size</span>
+                <div class="flex gap-2">
+                    <button onclick="setGridSize(10)" id="grid-btn-10" class="grid-size-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 border border-gray-700 hover:border-indigo-500 transition">10×10</button>
+                    <button onclick="setGridSize(12)" id="grid-btn-12" class="grid-size-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-900/50 border border-indigo-500 text-indigo-300">12×12</button>
+                    <button onclick="setGridSize(15)" id="grid-btn-15" class="grid-size-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 border border-gray-700 hover:border-indigo-500 transition">15×15</button>
+                </div>
+            </div>
+
+            <!-- Directions -->
+            <div class="flex items-center justify-between pt-2 border-t border-gray-800">
+                <span class="text-sm text-gray-400">Diagonals</span>
+                <button id="btn-diagonals" onclick="toggleDiagonals()" class="relative w-11 h-6 rounded-full bg-indigo-600 transition-colors">
+                    <span id="diag-knob" class="absolute top-0.5 left-5 w-5 h-5 bg-white rounded-full shadow transition-all"></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Start Button -->
+        <button id="btn-start" onclick="startGame()" disabled
+            class="w-full py-4 rounded-2xl font-bold text-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white shadow-lg shadow-emerald-900/30">
+            Generate Puzzle
+        </button>
+    </div>
+
+    <!-- ======================== SCREEN: GAME ======================== -->
+    <div id="screen-game" class="w-full max-w-2xl hidden">
+        <div class="space-y-4 fade-in">
+            <!-- Top Bar -->
+            <div class="flex items-center justify-between">
+                <button onclick="backToSetup()" class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    Back
+                </button>
+                <div class="flex items-center gap-3">
+                    <span id="found-counter" class="text-sm font-semibold text-emerald-400">0 / 8</span>
+                    <button onclick="sharePuzzle()" id="btn-share" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 transition flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                        Share
+                    </button>
+                    <button onclick="startGame()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 hover:bg-gray-700 border border-gray-700 transition">
+                        New Puzzle
+                    </button>
+                </div>
+            </div>
+
+            <!-- Win Banner (hidden until all found) -->
+            <div id="win-banner" class="hidden bg-emerald-900/40 border border-emerald-500/30 rounded-2xl p-4 text-center win-banner">
+                <div class="text-4xl mb-1">🎉</div>
+                <p class="text-lg font-black text-emerald-400">All words found!</p>
+                <p class="text-sm text-gray-400 mt-1">Great job! Try another puzzle?</p>
+            </div>
+
+            <!-- Grid -->
+            <div id="grid-container" class="bg-gray-900 rounded-2xl p-3 border border-gray-800 overflow-x-auto">
+                <div id="grid" class="inline-grid gap-0.5 mx-auto" style="--cell-size: 2.2rem; --cell-font: 0.85rem;"></div>
+            </div>
+
+            <!-- Word List -->
+            <div class="bg-gray-900 rounded-2xl p-4 border border-gray-800">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Words to Find</h3>
+                <div id="word-list" class="flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div id="share-toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold shadow-lg shadow-indigo-900/40 opacity-0 pointer-events-none transition-all duration-300 -translate-y-2 z-50">
+        Link copied to clipboard!
+    </div>
+
+    <script>
+    // ═══════════════════════════════════════════
+    //  STATE
+    // ═══════════════════════════════════════════
+    const SPREADSHEET_ID = '1HGKRjjWsGjGaSHOj5q7hGRSv9eorC61vSwkXAMC_r9c';
+    const MASTER_GID = '2104177411';
+
+    let state = {
+        source: 'sheets',
+        collections: [],
+        currentCollection: null,
+        vocabSets: [],
+        currentVocab: [],
+        // Puzzle settings
+        puzzleWordCount: 8,
+        gridSize: 12,
+        allowDiagonals: true,
+        // Game state
+        grid: [],             // 2D array of {letter, partOf: Set()}
+        placedWords: [],      // words actually placed in the grid
+        placements: [],       // [{word, sr, sc, dr, dc}, ...] for URL sharing
+        foundWords: new Set(),
+        // Selection
+        selecting: false,
+        selStart: null,       // {r, c}
+        selCells: [],         // [{r, c}, ...]
+    };
+
+    // ═══════════════════════════════════════════
+    //  INIT
+    // ═══════════════════════════════════════════
+    document.addEventListener('DOMContentLoaded', () => {
+        loadMasterSheet();
+        loadPuzzleFromURL();
+    });
+
+    // ═══════════════════════════════════════════
+    //  DATA LOADING (same pattern as Imposter)
+    // ═══════════════════════════════════════════
+    function sheetUrl(gid) {
+        return `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${gid}`;
+    }
+
+    function loadMasterSheet() {
+        fetchCSV(sheetUrl(MASTER_GID), (results) => {
+            const rows = results.data.filter(r => r['Set Collection Name']);
+            state.collections = rows;
+            populateCollections();
+        });
+    }
+
+    function fetchCSV(url, callback) {
+        Papa.parse(url, {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: callback,
+            error: (err) => console.error('CSV fetch error:', err)
+        });
+    }
+
+    function populateCollections() {
+        const sel = document.getElementById('select-collection');
+        sel.innerHTML = '<option value="">— Select a collection —</option>';
+
+        const seen = new Set();
+        state.collections.forEach(row => {
+            const name = row['Set Collection Name'];
+            if (!seen.has(name)) {
+                seen.add(name);
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                sel.appendChild(opt);
+            }
+        });
+    }
+
+    function onCollectionChange() {
+        const name = document.getElementById('select-collection').value;
+        const container = document.getElementById('vocab-set-container');
+        const badge = document.getElementById('word-count-badge');
+
+        if (!name) {
+            container.classList.add('hidden');
+            badge.classList.add('hidden');
+            state.currentCollection = null;
+            state.currentVocab = [];
+            updateStartButton();
+            return;
+        }
+
+        const collectionRows = state.collections.filter(r => r['Set Collection Name'] === name);
+        state.currentCollection = collectionRows;
+        loadTab(collectionRows[0]);
+    }
+
+    function loadTab(tabRow) {
+        const loading = document.getElementById('sheets-loading');
+        const container = document.getElementById('vocab-set-container');
+        const badge = document.getElementById('word-count-badge');
+
+        loading.classList.remove('hidden');
+        container.classList.add('hidden');
+        badge.classList.add('hidden');
+
+        fetchCSV(sheetUrl(tabRow['GID']), (results) => {
+            loading.classList.add('hidden');
+            const type = tabRow['Type'].trim();
+            const rows = results.data;
+
+            if (type === 'Textbook') {
+                parseTextbookTab(rows);
+            } else if (type === 'Set') {
+                parseSetTab(rows);
+            }
+        });
+    }
+
+    function parseTextbookTab(rows) {
+        const sets = [];
+        rows.forEach(row => {
+            const title = (row['Text Title'] || '').trim();
+            const page = (row['Page Number'] || '').trim();
+            const chapter = (row['Chapter'] || '').trim();
+            const vocabRaw = (row['Sidebar Vocabulary'] || '').trim();
+            if (!title || !vocabRaw) return;
+
+            const label = `${title} (p. ${page}, ch. ${chapter})`;
+            const words = vocabRaw.split(',').map(w => w.trim()).filter(Boolean);
+            if (words.length > 0) {
+                sets.push({ label, words });
+            }
+        });
+        state.vocabSets = sets;
+        populateVocabSets(sets);
+    }
+
+    function parseSetTab(rows) {
+        const sets = [];
+        rows.forEach(row => {
+            const name = (row['Set Name'] || '').trim();
+            const vocabRaw = (row['Vocabulary'] || '').trim();
+            if (!name || !vocabRaw) return;
+
+            const words = vocabRaw.split(',').map(w => w.trim()).filter(Boolean);
+            if (words.length > 0) {
+                sets.push({ label: name, words });
+            }
+        });
+        state.vocabSets = sets;
+        populateVocabSets(sets);
+    }
+
+    function populateVocabSets(sets) {
+        const container = document.getElementById('vocab-set-container');
+        const sel = document.getElementById('select-vocab-set');
+
+        sel.innerHTML = '<option value="">— Select a vocabulary set —</option>';
+
+        const allWords = sets.flatMap(s => s.words);
+        if (allWords.length > 0) {
+            const opt = document.createElement('option');
+            opt.value = '__ALL__';
+            opt.textContent = `All words (${allWords.length})`;
+            sel.appendChild(opt);
+        }
+
+        sets.forEach((s, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = `${s.label} (${s.words.length} words)`;
+            sel.appendChild(opt);
+        });
+
+        container.classList.remove('hidden');
+        state.currentVocab = [];
+        updateStartButton();
+    }
+
+    function onVocabSetChange() {
+        const val = document.getElementById('select-vocab-set').value;
+        const badge = document.getElementById('word-count-badge');
+        const countText = document.getElementById('word-count-text');
+
+        if (val === '') {
+            state.currentVocab = [];
+            badge.classList.add('hidden');
+        } else if (val === '__ALL__') {
+            state.currentVocab = state.vocabSets.flatMap(s => s.words);
+            countText.textContent = `${state.currentVocab.length} words loaded`;
+            badge.classList.remove('hidden');
+        } else {
+            const idx = parseInt(val);
+            state.currentVocab = state.vocabSets[idx].words;
+            countText.textContent = `${state.currentVocab.length} words loaded`;
+            badge.classList.remove('hidden');
+        }
+
+        updateStartButton();
+    }
+
+    function onCustomWordsChange() {
+        const raw = document.getElementById('custom-words').value;
+        const words = raw.split(',').map(w => w.trim()).filter(Boolean);
+        state.currentVocab = words;
+
+        const countEl = document.getElementById('custom-word-count');
+        const countText = document.getElementById('custom-count-text');
+        if (words.length > 0) {
+            countText.textContent = `${words.length} words`;
+            countEl.classList.remove('hidden');
+        } else {
+            countEl.classList.add('hidden');
+        }
+
+        updateStartButton();
+    }
+
+    // ═══════════════════════════════════════════
+    //  SOURCE TOGGLE
+    // ═══════════════════════════════════════════
+    function setSource(src) {
+        state.source = src;
+        const btnSheets = document.getElementById('btn-source-sheets');
+        const btnCustom = document.getElementById('btn-source-custom');
+        const srcSheets = document.getElementById('source-sheets');
+        const srcCustom = document.getElementById('source-custom');
+
+        if (src === 'sheets') {
+            btnSheets.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all bg-indigo-600 text-white';
+            btnCustom.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all text-gray-400 hover:text-white';
+            srcSheets.classList.remove('hidden');
+            srcCustom.classList.add('hidden');
+        } else {
+            btnCustom.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all bg-indigo-600 text-white';
+            btnSheets.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all text-gray-400 hover:text-white';
+            srcCustom.classList.remove('hidden');
+            srcSheets.classList.add('hidden');
+        }
+
+        if (src === 'custom') {
+            onCustomWordsChange();
+        } else {
+            onVocabSetChange();
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    //  SETTINGS
+    // ═══════════════════════════════════════════
+    function adjustWordCount(delta) {
+        state.puzzleWordCount = Math.max(3, Math.min(20, state.puzzleWordCount + delta));
+        document.getElementById('puzzle-word-count').textContent = state.puzzleWordCount;
+    }
+
+    function setGridSize(size) {
+        state.gridSize = size;
+        document.querySelectorAll('.grid-size-btn').forEach(btn => {
+            btn.className = 'grid-size-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 border border-gray-700 hover:border-indigo-500 transition';
+        });
+        document.getElementById(`grid-btn-${size}`).className = 'grid-size-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-900/50 border border-indigo-500 text-indigo-300';
+    }
+
+    function toggleDiagonals() {
+        state.allowDiagonals = !state.allowDiagonals;
+        const btn = document.getElementById('btn-diagonals');
+        const knob = document.getElementById('diag-knob');
+        if (state.allowDiagonals) {
+            btn.className = 'relative w-11 h-6 rounded-full bg-indigo-600 transition-colors';
+            knob.className = 'absolute top-0.5 left-5 w-5 h-5 bg-white rounded-full shadow transition-all';
+        } else {
+            btn.className = 'relative w-11 h-6 rounded-full bg-gray-700 transition-colors';
+            knob.className = 'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-all';
+        }
+    }
+
+    function updateStartButton() {
+        const btn = document.getElementById('btn-start');
+        btn.disabled = state.currentVocab.length < 1;
+    }
+
+    // ═══════════════════════════════════════════
+    //  SCREENS
+    // ═══════════════════════════════════════════
+    function showScreen(name) {
+        ['setup', 'game'].forEach(s => {
+            const el = document.getElementById(`screen-${s}`);
+            if (s === name) {
+                el.classList.remove('hidden');
+                void el.offsetWidth;
+                const inner = el.querySelector(':scope > div') || el.querySelector('.fade-in');
+                if (inner) { inner.classList.remove('fade-in'); void el.offsetWidth; inner.classList.add('fade-in'); }
+            } else {
+                el.classList.add('hidden');
+            }
+        });
+    }
+
+    function backToSetup() {
+        // Clear puzzle hash from URL
+        history.replaceState(null, '', window.location.pathname);
+        showScreen('setup');
+    }
+
+    // ═══════════════════════════════════════════
+    //  PUZZLE GENERATION
+    // ═══════════════════════════════════════════
+    function startGame() {
+        if (state.currentVocab.length < 1) return;
+
+        // Pick words — filter to those that can fit in the grid, remove spaces for grid placement
+        const size = state.gridSize;
+        const eligible = state.currentVocab
+            .map(w => w.trim())
+            .filter(w => w.length > 0 && sanitize(w).length <= size);
+
+        if (eligible.length === 0) {
+            alert('No words short enough to fit the grid. Try a larger grid or different words.');
+            return;
+        }
+
+        // Shuffle and pick up to puzzleWordCount
+        const shuffled = shuffle([...eligible]);
+        const count = Math.min(state.puzzleWordCount, shuffled.length);
+        const selected = shuffled.slice(0, count);
+
+        // Sort by length descending (longer words placed first for better fit)
+        selected.sort((a, b) => sanitize(b).length - sanitize(a).length);
+
+        // Initialize empty grid
+        state.grid = Array.from({ length: size }, () =>
+            Array.from({ length: size }, () => ({ letter: '', partOf: new Set() }))
+        );
+
+        state.placedWords = [];
+        state.placements = [];
+        state.foundWords = new Set();
+
+        // Directions: [dr, dc]
+        const directions = [
+            [0, 1],   // right
+            [1, 0],   // down
+            [0, -1],  // left
+            [-1, 0],  // up
+        ];
+        if (state.allowDiagonals) {
+            directions.push([1, 1], [1, -1], [-1, 1], [-1, -1]);
+        }
+
+        // Place each word
+        for (const word of selected) {
+            const clean = sanitize(word);
+            if (placeWord(clean, word, directions, size)) {
+                state.placedWords.push(word);
+            }
+        }
+
+        // Fill empty cells with random letters
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c < size; c++) {
+                if (!state.grid[r][c].letter) {
+                    state.grid[r][c].letter = alphabet[Math.floor(Math.random() * 26)];
+                }
+            }
+        }
+
+        showScreen('game');
+        renderGrid();
+        renderWordList();
+        updateCounter();
+        document.getElementById('win-banner').classList.add('hidden');
+        encodePuzzleToURL();
+    }
+
+    function sanitize(word) {
+        // Remove spaces, hyphens, apostrophes for grid placement; uppercase
+        return word.replace(/[\s\-'']/g, '').toUpperCase();
+    }
+
+    function placeWord(clean, original, directions, size) {
+        // Try random placements
+        const dirsCopy = shuffle([...directions]);
+        for (const [dr, dc] of dirsCopy) {
+            const positions = getAllPositions(clean.length, dr, dc, size);
+            const shuffledPos = shuffle(positions);
+            for (const [sr, sc] of shuffledPos) {
+                if (canPlace(clean, sr, sc, dr, dc, size)) {
+                    doPlace(clean, original, sr, sc, dr, dc);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    function getAllPositions(len, dr, dc, size) {
+        const positions = [];
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c < size; c++) {
+                const endR = r + dr * (len - 1);
+                const endC = c + dc * (len - 1);
+                if (endR >= 0 && endR < size && endC >= 0 && endC < size) {
+                    positions.push([r, c]);
+                }
+            }
+        }
+        return positions;
+    }
+
+    function canPlace(word, sr, sc, dr, dc, size) {
+        for (let i = 0; i < word.length; i++) {
+            const r = sr + dr * i;
+            const c = sc + dc * i;
+            const cell = state.grid[r][c];
+            if (cell.letter && cell.letter !== word[i]) return false;
+        }
+        return true;
+    }
+
+    function doPlace(clean, original, sr, sc, dr, dc) {
+        for (let i = 0; i < clean.length; i++) {
+            const r = sr + dr * i;
+            const c = sc + dc * i;
+            state.grid[r][c].letter = clean[i];
+            state.grid[r][c].partOf.add(original);
+        }
+        state.placements.push({ word: original, sr, sc, dr, dc });
+    }
+
+    function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    // ═══════════════════════════════════════════
+    //  RENDERING
+    // ═══════════════════════════════════════════
+    function renderGrid() {
+        const gridEl = document.getElementById('grid');
+        const size = state.gridSize;
+        gridEl.innerHTML = '';
+        gridEl.style.gridTemplateColumns = `repeat(${size}, var(--cell-size))`;
+
+        // Responsive cell sizing
+        const maxWidth = Math.min(window.innerWidth - 48, 600);
+        const cellSize = Math.max(1.4, Math.min(2.4, (maxWidth / size / 16) - 0.1));
+        const fontSize = Math.max(0.6, cellSize * 0.4);
+        gridEl.style.setProperty('--cell-size', `${cellSize}rem`);
+        gridEl.style.setProperty('--cell-font', `${fontSize}rem`);
+
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c < size; c++) {
+                const cell = document.createElement('div');
+                cell.className = 'ws-cell text-gray-300';
+                cell.textContent = state.grid[r][c].letter;
+                cell.dataset.r = r;
+                cell.dataset.c = c;
+
+                // Touch & mouse events
+                cell.addEventListener('mousedown', (e) => { e.preventDefault(); onSelStart(r, c); });
+                cell.addEventListener('mouseenter', () => { if (state.selecting) onSelMove(r, c); });
+                cell.addEventListener('touchstart', (e) => { e.preventDefault(); onSelStart(r, c); }, { passive: false });
+                cell.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                    if (el && el.dataset.r !== undefined) {
+                        onSelMove(parseInt(el.dataset.r), parseInt(el.dataset.c));
+                    }
+                }, { passive: false });
+
+                gridEl.appendChild(cell);
+            }
+        }
+
+        document.addEventListener('mouseup', onSelEnd);
+        document.addEventListener('touchend', onSelEnd);
+    }
+
+    function renderWordList() {
+        const listEl = document.getElementById('word-list');
+        listEl.innerHTML = '';
+
+        // Sort alphabetically for display
+        const sorted = [...state.placedWords].sort((a, b) => a.localeCompare(b));
+        sorted.forEach(word => {
+            const chip = document.createElement('span');
+            chip.className = 'word-chip px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-800 border border-gray-700 text-gray-300';
+            chip.textContent = word;
+            chip.id = `chip-${sanitize(word)}`;
+            listEl.appendChild(chip);
+        });
+    }
+
+    function updateCounter() {
+        const total = state.placedWords.length;
+        const found = state.foundWords.size;
+        document.getElementById('found-counter').textContent = `${found} / ${total}`;
+    }
+
+    // ═══════════════════════════════════════════
+    //  SELECTION (DRAG TO SELECT)
+    // ═══════════════════════════════════════════
+    function onSelStart(r, c) {
+        state.selecting = true;
+        state.selStart = { r, c };
+        state.selCells = [{ r, c }];
+        highlightSelection();
+    }
+
+    function onSelMove(r, c) {
+        if (!state.selecting || !state.selStart) return;
+
+        const sr = state.selStart.r;
+        const sc = state.selStart.c;
+        const dr = Math.sign(r - sr);
+        const dc = Math.sign(c - sc);
+
+        // Must be a straight line (horizontal, vertical, or diagonal)
+        const diffR = Math.abs(r - sr);
+        const diffC = Math.abs(c - sc);
+
+        const isLine = (diffR === 0 && diffC > 0) ||
+                       (diffC === 0 && diffR > 0) ||
+                       (diffR === diffC && diffR > 0);
+
+        if (!isLine) return;
+
+        // Build cells along the line
+        const cells = [];
+        const steps = Math.max(diffR, diffC);
+        for (let i = 0; i <= steps; i++) {
+            cells.push({ r: sr + dr * i, c: sc + dc * i });
+        }
+        state.selCells = cells;
+        highlightSelection();
+    }
+
+    function onSelEnd() {
+        if (!state.selecting) return;
+        state.selecting = false;
+        checkSelection();
+        clearSelectionHighlight();
+    }
+
+    function highlightSelection() {
+        // Clear previous
+        document.querySelectorAll('.ws-cell.selecting').forEach(el => el.classList.remove('selecting'));
+
+        state.selCells.forEach(({ r, c }) => {
+            const cell = getGridCell(r, c);
+            if (cell) cell.classList.add('selecting');
+        });
+    }
+
+    function clearSelectionHighlight() {
+        document.querySelectorAll('.ws-cell.selecting').forEach(el => el.classList.remove('selecting'));
+        state.selCells = [];
+    }
+
+    function getGridCell(r, c) {
+        return document.querySelector(`.ws-cell[data-r="${r}"][data-c="${c}"]`);
+    }
+
+    function checkSelection() {
+        if (state.selCells.length < 2) return;
+
+        // Build selected string
+        const selectedLetters = state.selCells.map(({ r, c }) => state.grid[r][c].letter).join('');
+
+        // Check against placed words (both forward and reverse)
+        for (const word of state.placedWords) {
+            if (state.foundWords.has(word)) continue;
+            const clean = sanitize(word);
+            const reversed = clean.split('').reverse().join('');
+            if (selectedLetters === clean || selectedLetters === reversed) {
+                markFound(word);
+                return;
+            }
+        }
+    }
+
+    function markFound(word) {
+        state.foundWords.add(word);
+
+        // Highlight grid cells that belong to this word
+        const size = state.gridSize;
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c < size; c++) {
+                if (state.grid[r][c].partOf.has(word)) {
+                    const cell = getGridCell(r, c);
+                    if (cell && !cell.classList.contains('found')) {
+                        cell.classList.add('found', 'found-flash');
+                    }
+                }
+            }
+        }
+
+        // Mark word chip
+        const chip = document.getElementById(`chip-${sanitize(word)}`);
+        if (chip) {
+            chip.classList.add('found');
+            chip.classList.remove('bg-gray-800', 'border-gray-700', 'text-gray-300');
+            chip.classList.add('bg-emerald-900/30', 'border-emerald-700/50', 'text-emerald-500');
+        }
+
+        updateCounter();
+
+        // Check win
+        if (state.foundWords.size === state.placedWords.length) {
+            setTimeout(() => {
+                document.getElementById('win-banner').classList.remove('hidden');
+            }, 400);
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    //  URL SHARING
+    // ═══════════════════════════════════════════
+    function encodePuzzleToURL() {
+        const size = state.gridSize;
+        // Flatten grid letters into a single string
+        let gridStr = '';
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c < size; c++) {
+                gridStr += state.grid[r][c].letter;
+            }
+        }
+
+        // Compact placements: [sr, sc, dr, dc] per word
+        const placements = state.placements.map(p => [p.sr, p.sc, p.dr, p.dc]);
+
+        const data = {
+            s: size,
+            g: gridStr,
+            w: state.placedWords,
+            p: placements
+        };
+
+        const json = JSON.stringify(data);
+        const encoded = btoa(unescape(encodeURIComponent(json)));
+        history.replaceState(null, '', `${window.location.pathname}?p=${encoded}`);
+    }
+
+    function loadPuzzleFromURL() {
+        const params = new URLSearchParams(window.location.search);
+        const encoded = params.get('p');
+        if (!encoded) return;
+
+        try {
+            const json = decodeURIComponent(escape(atob(encoded)));
+            const data = JSON.parse(json);
+            loadFromShared(data);
+        } catch (e) {
+            console.error('Failed to load shared puzzle:', e);
+        }
+    }
+
+    function loadFromShared(data) {
+        const size = data.s;
+        const gridStr = data.g;
+        const words = data.w;
+        const placements = data.p;
+
+        state.gridSize = size;
+        state.placedWords = words;
+        state.foundWords = new Set();
+        state.placements = placements.map((p, i) => ({
+            word: words[i], sr: p[0], sc: p[1], dr: p[2], dc: p[3]
+        }));
+
+        // Rebuild grid
+        state.grid = Array.from({ length: size }, () =>
+            Array.from({ length: size }, () => ({ letter: '', partOf: new Set() }))
+        );
+
+        // Fill grid letters from the flat string
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c < size; c++) {
+                state.grid[r][c].letter = gridStr[r * size + c];
+            }
+        }
+
+        // Reconstruct partOf sets from placements
+        state.placements.forEach(({ word, sr, sc, dr, dc }) => {
+            const clean = sanitize(word);
+            for (let i = 0; i < clean.length; i++) {
+                const r = sr + dr * i;
+                const c = sc + dc * i;
+                state.grid[r][c].partOf.add(word);
+            }
+        });
+
+        showScreen('game');
+        renderGrid();
+        renderWordList();
+        updateCounter();
+        document.getElementById('win-banner').classList.add('hidden');
+    }
+
+    function sharePuzzle() {
+        const url = window.location.href;
+        navigator.clipboard.writeText(url).then(() => {
+            showToast();
+        }).catch(() => {
+            // Fallback for older browsers
+            const input = document.createElement('input');
+            input.value = url;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            showToast();
+        });
+    }
+
+    function showToast() {
+        const toast = document.getElementById('share-toast');
+        toast.classList.remove('opacity-0', '-translate-y-2');
+        toast.classList.add('opacity-100', 'translate-y-0');
+        setTimeout(() => {
+            toast.classList.remove('opacity-100', 'translate-y-0');
+            toast.classList.add('opacity-0', '-translate-y-2');
+        }, 2000);
+    }
+    </script>
+</body>
+</html>

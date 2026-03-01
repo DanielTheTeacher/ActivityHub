@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imposter – Vocabulary Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        * { -webkit-tap-highlight-color: transparent; }
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        .fade-out { animation: fadeOut 0.2s ease-in forwards; }
+        .pop-in { animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .shake { animation: shake 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+        .card-flip { perspective: 600px; }
+        .card-flip-inner { transition: transform 0.5s; transform-style: preserve-3d; }
+        .card-flip-inner.flipped { transform: rotateY(180deg); }
+        .card-front, .card-back { backface-visibility: hidden; }
+        .card-back { transform: rotateY(180deg); }
+        .pulse-border { animation: pulseBorder 2s ease-in-out infinite; }
+        @keyframes pulseBorder { 0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); } 50% { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0); } }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans antialiased min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- ======================== SCREEN: SETUP ======================== -->
+    <div id="screen-setup" class="w-full max-w-md space-y-6 fade-in">
+        <!-- Header -->
+        <div class="text-center space-y-1">
+            <h1 class="text-4xl font-black tracking-tight">
+                <span class="text-indigo-400">IM</span><span class="text-red-400">PO</span><span class="text-indigo-400">STER</span>
+            </h1>
+            <p class="text-gray-500 text-sm">Find the imposter among your friends</p>
+        </div>
+
+        <!-- Vocabulary Source -->
+        <div class="bg-gray-900 rounded-2xl p-5 space-y-4 border border-gray-800">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Vocabulary Source</h2>
+
+            <!-- Source Toggle -->
+            <div class="flex rounded-xl bg-gray-800 p-1">
+                <button id="btn-source-sheets" onclick="setSource('sheets')" class="flex-1 py-2 text-sm font-semibold rounded-lg transition-all bg-indigo-600 text-white">
+                    Google Sheets
+                </button>
+                <button id="btn-source-custom" onclick="setSource('custom')" class="flex-1 py-2 text-sm font-semibold rounded-lg transition-all text-gray-400 hover:text-white">
+                    Custom Words
+                </button>
+            </div>
+
+            <!-- Sheets Source -->
+            <div id="source-sheets" class="space-y-3">
+                <!-- Set Collection Dropdown -->
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Set Collection</label>
+                    <select id="select-collection" onchange="onCollectionChange()" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                        <option value="">Loading collections...</option>
+                    </select>
+                </div>
+
+                <!-- Vocabulary Set Dropdown -->
+                <div id="vocab-set-container" class="hidden">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Vocabulary Set</label>
+                    <select id="select-vocab-set" onchange="onVocabSetChange()" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                        <option value="">Select a set...</option>
+                    </select>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div id="sheets-loading" class="hidden text-center py-2">
+                    <div class="inline-block w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span class="text-xs text-gray-500 ml-2">Loading...</span>
+                </div>
+
+                <!-- Word Count Badge -->
+                <div id="word-count-badge" class="hidden">
+                    <span class="inline-flex items-center gap-1.5 bg-indigo-900/40 text-indigo-300 text-xs font-medium px-3 py-1 rounded-full border border-indigo-800/50">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
+                        <span id="word-count-text">0 words loaded</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Custom Source -->
+            <div id="source-custom" class="hidden space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Enter words (comma-separated)</label>
+                    <textarea id="custom-words" rows="4" placeholder="apple, banana, cherry, dog, elephant, forest..." 
+                        class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none"
+                        oninput="onCustomWordsChange()"></textarea>
+                </div>
+                <div id="custom-word-count" class="hidden">
+                    <span class="inline-flex items-center gap-1.5 bg-emerald-900/40 text-emerald-300 text-xs font-medium px-3 py-1 rounded-full border border-emerald-800/50">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
+                        <span id="custom-count-text">0 words</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Player Count -->
+        <div class="bg-gray-900 rounded-2xl p-5 space-y-4 border border-gray-800">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Players</h2>
+            <div class="flex items-center justify-between">
+                <button onclick="adjustPlayers(-1)" class="w-11 h-11 rounded-xl bg-gray-800 hover:bg-gray-700 text-xl font-bold transition flex items-center justify-center border border-gray-700">−</button>
+                <div class="text-center">
+                    <span id="player-count" class="text-5xl font-black text-white">4</span>
+                    <p class="text-xs text-gray-500 mt-0.5">players</p>
+                </div>
+                <button onclick="adjustPlayers(1)" class="w-11 h-11 rounded-xl bg-gray-800 hover:bg-gray-700 text-xl font-bold transition flex items-center justify-center border border-gray-700">+</button>
+            </div>
+
+            <!-- Imposter Count -->
+            <div class="flex items-center justify-between pt-2 border-t border-gray-800">
+                <span class="text-sm text-gray-400">Imposters</span>
+                <div class="flex items-center gap-3">
+                    <button onclick="adjustImposters(-1)" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm font-bold transition flex items-center justify-center border border-gray-700">−</button>
+                    <span id="imposter-count" class="text-xl font-bold text-red-400">1</span>
+                    <button onclick="adjustImposters(1)" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm font-bold transition flex items-center justify-center border border-gray-700">+</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Start Button -->
+        <button id="btn-start" onclick="startGame()" disabled
+            class="w-full py-4 rounded-2xl font-bold text-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white shadow-lg shadow-indigo-900/30">
+            Start Game
+        </button>
+    </div>
+
+    <!-- ======================== SCREEN: REVEAL ======================== -->
+    <div id="screen-reveal" class="w-full max-w-md hidden">
+        <div class="text-center space-y-6 fade-in">
+            <!-- Progress -->
+            <div class="space-y-2">
+                <div class="flex justify-between text-xs text-gray-500 px-1">
+                    <span>Player <span id="reveal-current">1</span> of <span id="reveal-total">4</span></span>
+                    <span id="reveal-status" class="text-indigo-400">Tap to reveal</span>
+                </div>
+                <div class="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                    <div id="reveal-progress" class="h-full bg-indigo-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Card -->
+            <div class="card-flip mx-auto" style="width: 280px; height: 360px;">
+                <div id="card-inner" class="card-flip-inner w-full h-full relative cursor-pointer" onclick="flipCard()">
+                    <!-- Front (hidden state) -->
+                    <div class="card-front absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl flex flex-col items-center justify-center shadow-2xl border border-indigo-500/30 pulse-border">
+                        <div class="text-6xl mb-3">🔒</div>
+                        <p class="text-lg font-semibold text-white/90">Player <span id="card-player-num">1</span></p>
+                        <p class="text-sm text-white/60 mt-1">Tap to reveal your word</p>
+                    </div>
+                    <!-- Back (revealed state) -->
+                    <div id="card-back" class="card-back absolute inset-0 rounded-3xl flex flex-col items-center justify-center shadow-2xl border p-6">
+                        <div id="card-emoji" class="text-5xl mb-3">📖</div>
+                        <p id="card-role" class="text-xs font-bold uppercase tracking-widest mb-2">Your word</p>
+                        <p id="card-word" class="text-2xl font-black text-center leading-tight"></p>
+                        <p id="card-hint" class="text-sm text-center mt-3 opacity-70"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Next / Done Button -->
+            <button id="btn-next-player" onclick="nextPlayer()" class="hidden w-full py-3.5 rounded-2xl font-bold text-base transition-all bg-gray-800 hover:bg-gray-700 border border-gray-700 active:scale-[0.98]">
+                Pass to next player
+            </button>
+            <button id="btn-start-discussion" onclick="showDiscussion()" class="hidden w-full py-3.5 rounded-2xl font-bold text-base transition-all bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] shadow-lg shadow-indigo-900/30">
+                Everyone ready — Start discussion!
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================== SCREEN: DISCUSSION ======================== -->
+    <div id="screen-discussion" class="w-full max-w-md hidden">
+        <div class="text-center space-y-6 fade-in">
+            <div class="space-y-2">
+                <div class="text-5xl">🗣️</div>
+                <h2 class="text-2xl font-black">Discussion Time</h2>
+                <p class="text-gray-400 text-sm max-w-xs mx-auto">
+                    Describe your word without saying it. Ask questions and figure out who the imposter is!
+                </p>
+            </div>
+
+            <!-- Timer -->
+            <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+                <div id="timer-display" class="text-6xl font-black font-mono tabular-nums text-white">2:00</div>
+                <div class="flex gap-3 mt-4 justify-center">
+                    <button onclick="toggleTimer()" id="btn-timer-toggle" class="px-6 py-2.5 rounded-xl font-semibold text-sm bg-indigo-600 hover:bg-indigo-500 transition">
+                        Start Timer
+                    </button>
+                    <button onclick="resetTimer()" class="px-6 py-2.5 rounded-xl font-semibold text-sm bg-gray-800 hover:bg-gray-700 border border-gray-700 transition">
+                        Reset
+                    </button>
+                </div>
+                <!-- Timer Duration Selector -->
+                <div class="flex gap-2 mt-3 justify-center">
+                    <button onclick="setTimerDuration(60)" class="timer-dur px-3 py-1 rounded-lg text-xs font-medium bg-gray-800 border border-gray-700 hover:border-indigo-500 transition">1:00</button>
+                    <button onclick="setTimerDuration(120)" class="timer-dur px-3 py-1 rounded-lg text-xs font-medium bg-indigo-900/50 border border-indigo-500 text-indigo-300">2:00</button>
+                    <button onclick="setTimerDuration(180)" class="timer-dur px-3 py-1 rounded-lg text-xs font-medium bg-gray-800 border border-gray-700 hover:border-indigo-500 transition">3:00</button>
+                    <button onclick="setTimerDuration(300)" class="timer-dur px-3 py-1 rounded-lg text-xs font-medium bg-gray-800 border border-gray-700 hover:border-indigo-500 transition">5:00</button>
+                </div>
+            </div>
+
+            <button onclick="showVoting()" class="w-full py-3.5 rounded-2xl font-bold text-base transition-all bg-red-600 hover:bg-red-500 active:scale-[0.98] shadow-lg shadow-red-900/30">
+                Time to vote!
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================== SCREEN: VOTING ======================== -->
+    <div id="screen-voting" class="w-full max-w-md hidden">
+        <div class="text-center space-y-6 fade-in">
+            <div class="space-y-2">
+                <div class="text-5xl">🗳️</div>
+                <h2 class="text-2xl font-black">Vote!</h2>
+                <p class="text-gray-400 text-sm">Who is the imposter? Count down from 3 and point!</p>
+            </div>
+
+            <button onclick="showResult()" class="w-full py-4 rounded-2xl font-bold text-lg transition-all bg-red-600 hover:bg-red-500 active:scale-[0.98] shadow-lg shadow-red-900/30">
+                Reveal the imposter
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================== SCREEN: RESULT ======================== -->
+    <div id="screen-result" class="w-full max-w-md hidden">
+        <div class="text-center space-y-6 fade-in">
+            <div class="space-y-2">
+                <div class="text-6xl pop-in">🎭</div>
+                <h2 class="text-2xl font-black">The Imposter<span id="result-plural"></span></h2>
+            </div>
+
+            <div id="result-imposters" class="space-y-3">
+                <!-- Filled by JS -->
+            </div>
+
+            <div class="bg-gray-900 rounded-2xl p-5 border border-gray-800 space-y-2">
+                <p class="text-xs text-gray-500 uppercase tracking-wider font-semibold">The word was</p>
+                <p id="result-word" class="text-3xl font-black text-indigo-400"></p>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="playAgain()" class="flex-1 py-3.5 rounded-2xl font-bold text-base transition-all bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98]">
+                    Play Again
+                </button>
+                <button onclick="backToSetup()" class="flex-1 py-3.5 rounded-2xl font-bold text-base transition-all bg-gray-800 hover:bg-gray-700 border border-gray-700 active:scale-[0.98]">
+                    New Setup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ═══════════════════════════════════════════
+    //  STATE
+    // ═══════════════════════════════════════════
+    const SPREADSHEET_ID = '1HGKRjjWsGjGaSHOj5q7hGRSv9eorC61vSwkXAMC_r9c';
+    const MASTER_GID = '2104177411';
+
+    let state = {
+        source: 'sheets',        // 'sheets' | 'custom'
+        collections: [],         // master sheet rows
+        currentCollection: null, // selected collection object
+        vocabSets: [],           // parsed sets from a collection tab
+        currentVocab: [],        // array of words for the current set
+        allWords: [],            // combined for "all" option
+        playerCount: 4,
+        imposterCount: 1,
+        // Game state
+        secretWord: '',
+        imposterIndices: [],     // which player indices are imposters
+        currentRevealIndex: 0,
+        cardFlipped: false,
+        // Timer
+        timerSeconds: 120,
+        timerMax: 120,
+        timerInterval: null,
+        timerRunning: false,
+    };
+
+    // ═══════════════════════════════════════════
+    //  INIT
+    // ═══════════════════════════════════════════
+    document.addEventListener('DOMContentLoaded', () => {
+        loadMasterSheet();
+    });
+
+    // ═══════════════════════════════════════════
+    //  DATA LOADING
+    // ═══════════════════════════════════════════
+    function sheetUrl(gid) {
+        return `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${gid}`;
+    }
+
+    function loadMasterSheet() {
+        fetchCSV(sheetUrl(MASTER_GID), (results) => {
+            const rows = results.data.filter(r => r['Set Collection Name']);
+            state.collections = rows;
+            populateCollections();
+        });
+    }
+
+    function fetchCSV(url, callback) {
+        Papa.parse(url, {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: callback,
+            error: (err) => console.error('CSV fetch error:', err)
+        });
+    }
+
+    function populateCollections() {
+        const sel = document.getElementById('select-collection');
+        sel.innerHTML = '<option value="">— Select a collection —</option>';
+
+        // Get unique collection names
+        const seen = new Set();
+        state.collections.forEach(row => {
+            const name = row['Set Collection Name'];
+            if (!seen.has(name)) {
+                seen.add(name);
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                sel.appendChild(opt);
+            }
+        });
+    }
+
+    function onCollectionChange() {
+        const name = document.getElementById('select-collection').value;
+        const container = document.getElementById('vocab-set-container');
+        const loading = document.getElementById('sheets-loading');
+        const badge = document.getElementById('word-count-badge');
+
+        if (!name) {
+            container.classList.add('hidden');
+            badge.classList.add('hidden');
+            state.currentCollection = null;
+            state.currentVocab = [];
+            updateStartButton();
+            return;
+        }
+
+        // A collection may have multiple tabs (rows in master with same collection name)
+        const collectionRows = state.collections.filter(r => r['Set Collection Name'] === name);
+        state.currentCollection = collectionRows;
+
+        // If only one tab, load it directly
+        if (collectionRows.length === 1) {
+            loadTab(collectionRows[0]);
+        } else {
+            // Multiple tabs – for now just load the first matching tab name
+            // (Usually collection name == tab name for a single collection)
+            loadTab(collectionRows[0]);
+        }
+    }
+
+    function loadTab(tabRow) {
+        const loading = document.getElementById('sheets-loading');
+        const container = document.getElementById('vocab-set-container');
+        const badge = document.getElementById('word-count-badge');
+
+        loading.classList.remove('hidden');
+        container.classList.add('hidden');
+        badge.classList.add('hidden');
+
+        fetchCSV(sheetUrl(tabRow['GID']), (results) => {
+            loading.classList.add('hidden');
+            const type = tabRow['Type'].trim();
+            const rows = results.data;
+
+            if (type === 'Textbook') {
+                parseTextbookTab(rows);
+            } else if (type === 'Set') {
+                parseSetTab(rows);
+            }
+        });
+    }
+
+    function parseTextbookTab(rows) {
+        const sets = [];
+        rows.forEach(row => {
+            const title = (row['Text Title'] || '').trim();
+            const page = (row['Page Number'] || '').trim();
+            const chapter = (row['Chapter'] || '').trim();
+            const vocabRaw = (row['Sidebar Vocabulary'] || '').trim();
+            if (!title || !vocabRaw) return;
+
+            const label = `${title} (p. ${page}, ch. ${chapter})`;
+            const words = vocabRaw.split(',').map(w => w.trim()).filter(Boolean);
+            if (words.length > 0) {
+                sets.push({ label, words });
+            }
+        });
+        state.vocabSets = sets;
+        populateVocabSets(sets);
+    }
+
+    function parseSetTab(rows) {
+        const sets = [];
+        rows.forEach(row => {
+            const name = (row['Set Name'] || '').trim();
+            const vocabRaw = (row['Vocabulary'] || '').trim();
+            if (!name || !vocabRaw) return;
+
+            const words = vocabRaw.split(',').map(w => w.trim()).filter(Boolean);
+            if (words.length > 0) {
+                sets.push({ label: name, words });
+            }
+        });
+        state.vocabSets = sets;
+        populateVocabSets(sets);
+    }
+
+    function populateVocabSets(sets) {
+        const container = document.getElementById('vocab-set-container');
+        const sel = document.getElementById('select-vocab-set');
+
+        sel.innerHTML = '<option value="">— Select a vocabulary set —</option>';
+
+        // "All words" option
+        const allWords = sets.flatMap(s => s.words);
+        if (allWords.length > 0) {
+            const opt = document.createElement('option');
+            opt.value = '__ALL__';
+            opt.textContent = `All words (${allWords.length})`;
+            sel.appendChild(opt);
+        }
+
+        sets.forEach((s, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = `${s.label} (${s.words.length} words)`;
+            sel.appendChild(opt);
+        });
+
+        container.classList.remove('hidden');
+        state.currentVocab = [];
+        updateStartButton();
+    }
+
+    function onVocabSetChange() {
+        const val = document.getElementById('select-vocab-set').value;
+        const badge = document.getElementById('word-count-badge');
+        const countText = document.getElementById('word-count-text');
+
+        if (val === '') {
+            state.currentVocab = [];
+            badge.classList.add('hidden');
+        } else if (val === '__ALL__') {
+            state.currentVocab = state.vocabSets.flatMap(s => s.words);
+            countText.textContent = `${state.currentVocab.length} words loaded`;
+            badge.classList.remove('hidden');
+        } else {
+            const idx = parseInt(val);
+            state.currentVocab = state.vocabSets[idx].words;
+            countText.textContent = `${state.currentVocab.length} words loaded`;
+            badge.classList.remove('hidden');
+        }
+
+        updateStartButton();
+    }
+
+    function onCustomWordsChange() {
+        const raw = document.getElementById('custom-words').value;
+        const words = raw.split(',').map(w => w.trim()).filter(Boolean);
+        state.currentVocab = words;
+
+        const countEl = document.getElementById('custom-word-count');
+        const countText = document.getElementById('custom-count-text');
+        if (words.length > 0) {
+            countText.textContent = `${words.length} words`;
+            countEl.classList.remove('hidden');
+        } else {
+            countEl.classList.add('hidden');
+        }
+
+        updateStartButton();
+    }
+
+    // ═══════════════════════════════════════════
+    //  SOURCE TOGGLE
+    // ═══════════════════════════════════════════
+    function setSource(src) {
+        state.source = src;
+        const btnSheets = document.getElementById('btn-source-sheets');
+        const btnCustom = document.getElementById('btn-source-custom');
+        const srcSheets = document.getElementById('source-sheets');
+        const srcCustom = document.getElementById('source-custom');
+
+        if (src === 'sheets') {
+            btnSheets.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all bg-indigo-600 text-white';
+            btnCustom.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all text-gray-400 hover:text-white';
+            srcSheets.classList.remove('hidden');
+            srcCustom.classList.add('hidden');
+        } else {
+            btnCustom.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all bg-indigo-600 text-white';
+            btnSheets.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all text-gray-400 hover:text-white';
+            srcCustom.classList.remove('hidden');
+            srcSheets.classList.add('hidden');
+        }
+
+        // Re-evaluate words
+        if (src === 'custom') {
+            onCustomWordsChange();
+        } else {
+            onVocabSetChange();
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    //  PLAYER COUNT
+    // ═══════════════════════════════════════════
+    function adjustPlayers(delta) {
+        state.playerCount = Math.max(3, Math.min(20, state.playerCount + delta));
+        document.getElementById('player-count').textContent = state.playerCount;
+        // Ensure imposters < players
+        if (state.imposterCount >= state.playerCount) {
+            state.imposterCount = state.playerCount - 1;
+            document.getElementById('imposter-count').textContent = state.imposterCount;
+        }
+        updateStartButton();
+    }
+
+    function adjustImposters(delta) {
+        state.imposterCount = Math.max(1, Math.min(state.playerCount - 1, state.imposterCount + delta));
+        document.getElementById('imposter-count').textContent = state.imposterCount;
+    }
+
+    function updateStartButton() {
+        const btn = document.getElementById('btn-start');
+        btn.disabled = state.currentVocab.length < 2;
+    }
+
+    // ═══════════════════════════════════════════
+    //  GAME START
+    // ═══════════════════════════════════════════
+    function startGame() {
+        if (state.currentVocab.length < 2) return;
+
+        // Pick a secret word
+        state.secretWord = state.currentVocab[Math.floor(Math.random() * state.currentVocab.length)];
+
+        // Pick imposter indices
+        state.imposterIndices = [];
+        const indices = Array.from({ length: state.playerCount }, (_, i) => i);
+        for (let i = 0; i < state.imposterCount; i++) {
+            const pick = Math.floor(Math.random() * indices.length);
+            state.imposterIndices.push(indices.splice(pick, 1)[0]);
+        }
+
+        state.currentRevealIndex = 0;
+        state.cardFlipped = false;
+
+        showScreen('reveal');
+        setupRevealCard();
+    }
+
+    function setupRevealCard() {
+        const idx = state.currentRevealIndex;
+        document.getElementById('reveal-current').textContent = idx + 1;
+        document.getElementById('reveal-total').textContent = state.playerCount;
+        document.getElementById('reveal-progress').style.width = `${(idx / state.playerCount) * 100}%`;
+        document.getElementById('reveal-status').textContent = 'Tap to reveal';
+        document.getElementById('card-player-num').textContent = idx + 1;
+
+        // Reset card flip
+        document.getElementById('card-inner').classList.remove('flipped');
+        state.cardFlipped = false;
+
+        // Prepare back content
+        const isImposter = state.imposterIndices.includes(idx);
+        const back = document.getElementById('card-back');
+        const emoji = document.getElementById('card-emoji');
+        const role = document.getElementById('card-role');
+        const word = document.getElementById('card-word');
+        const hint = document.getElementById('card-hint');
+
+        if (isImposter) {
+            back.className = 'card-back absolute inset-0 rounded-3xl flex flex-col items-center justify-center shadow-2xl border border-red-500/40 bg-gradient-to-br from-red-950 to-gray-900 p-6';
+            emoji.textContent = '🕵️';
+            role.textContent = 'You are the imposter!';
+            role.className = 'text-xs font-bold uppercase tracking-widest mb-2 text-red-400';
+            word.textContent = '???';
+            word.className = 'text-4xl font-black text-red-400';
+            hint.textContent = 'Blend in. Don\'t get caught!';
+            hint.className = 'text-sm text-center mt-3 text-red-300/60';
+        } else {
+            back.className = 'card-back absolute inset-0 rounded-3xl flex flex-col items-center justify-center shadow-2xl border border-indigo-500/30 bg-gradient-to-br from-gray-900 to-indigo-950 p-6';
+            emoji.textContent = '📖';
+            role.textContent = 'Your word';
+            role.className = 'text-xs font-bold uppercase tracking-widest mb-2 text-indigo-400';
+            word.textContent = state.secretWord;
+            word.className = 'text-2xl font-black text-white text-center leading-tight';
+            hint.textContent = 'Remember it, then pass the device.';
+            hint.className = 'text-sm text-center mt-3 text-indigo-300/60';
+        }
+
+        // Hide action buttons
+        document.getElementById('btn-next-player').classList.add('hidden');
+        document.getElementById('btn-start-discussion').classList.add('hidden');
+    }
+
+    function flipCard() {
+        if (state.cardFlipped) return;
+        state.cardFlipped = true;
+
+        document.getElementById('card-inner').classList.add('flipped');
+        document.getElementById('reveal-status').textContent = 'Memorize your word!';
+
+        // Show appropriate button after a short delay
+        setTimeout(() => {
+            if (state.currentRevealIndex < state.playerCount - 1) {
+                document.getElementById('btn-next-player').classList.remove('hidden');
+            } else {
+                document.getElementById('btn-start-discussion').classList.remove('hidden');
+            }
+        }, 600);
+    }
+
+    function nextPlayer() {
+        state.currentRevealIndex++;
+        setupRevealCard();
+    }
+
+    // ═══════════════════════════════════════════
+    //  SCREENS
+    // ═══════════════════════════════════════════
+    function showScreen(name) {
+        ['setup', 'reveal', 'discussion', 'voting', 'result'].forEach(s => {
+            const el = document.getElementById(`screen-${s}`);
+            if (s === name) {
+                el.classList.remove('hidden');
+                el.querySelector('.fade-in')?.classList.remove('fade-in');
+                void el.offsetWidth; // reflow
+                el.querySelector(':scope > div')?.classList.add('fade-in');
+            } else {
+                el.classList.add('hidden');
+            }
+        });
+    }
+
+    function showDiscussion() {
+        stopTimer();
+        state.timerSeconds = state.timerMax;
+        state.timerRunning = false;
+        updateTimerDisplay();
+        document.getElementById('btn-timer-toggle').textContent = 'Start Timer';
+        showScreen('discussion');
+    }
+
+    function showVoting() {
+        stopTimer();
+        showScreen('voting');
+    }
+
+    function showResult() {
+        document.getElementById('result-word').textContent = state.secretWord;
+
+        const plural = state.imposterIndices.length > 1 ? 's were...' : ' was...';
+        document.getElementById('result-plural').textContent = plural;
+
+        const container = document.getElementById('result-imposters');
+        container.innerHTML = '';
+        state.imposterIndices.sort((a, b) => a - b).forEach(idx => {
+            const div = document.createElement('div');
+            div.className = 'bg-red-950/50 border border-red-500/30 rounded-2xl p-4 pop-in';
+            div.innerHTML = `
+                <span class="text-4xl">🕵️</span>
+                <p class="text-xl font-black text-red-400 mt-1">Player ${idx + 1}</p>
+            `;
+            container.appendChild(div);
+        });
+
+        showScreen('result');
+    }
+
+    function playAgain() {
+        startGame();
+    }
+
+    function backToSetup() {
+        stopTimer();
+        showScreen('setup');
+    }
+
+    // ═══════════════════════════════════════════
+    //  TIMER
+    // ═══════════════════════════════════════════
+    function toggleTimer() {
+        if (state.timerRunning) {
+            stopTimer();
+            document.getElementById('btn-timer-toggle').textContent = 'Resume';
+        } else {
+            state.timerRunning = true;
+            document.getElementById('btn-timer-toggle').textContent = 'Pause';
+            state.timerInterval = setInterval(() => {
+                state.timerSeconds--;
+                updateTimerDisplay();
+                if (state.timerSeconds <= 0) {
+                    stopTimer();
+                    document.getElementById('timer-display').classList.add('shake');
+                    setTimeout(() => document.getElementById('timer-display').classList.remove('shake'), 500);
+                }
+            }, 1000);
+        }
+    }
+
+    function stopTimer() {
+        state.timerRunning = false;
+        clearInterval(state.timerInterval);
+    }
+
+    function resetTimer() {
+        stopTimer();
+        state.timerSeconds = state.timerMax;
+        updateTimerDisplay();
+        document.getElementById('btn-timer-toggle').textContent = 'Start Timer';
+    }
+
+    function setTimerDuration(seconds) {
+        stopTimer();
+        state.timerMax = seconds;
+        state.timerSeconds = seconds;
+        updateTimerDisplay();
+        document.getElementById('btn-timer-toggle').textContent = 'Start Timer';
+
+        // Update active button style
+        document.querySelectorAll('.timer-dur').forEach(btn => {
+            btn.className = 'timer-dur px-3 py-1 rounded-lg text-xs font-medium bg-gray-800 border border-gray-700 hover:border-indigo-500 transition';
+        });
+        event.target.className = 'timer-dur px-3 py-1 rounded-lg text-xs font-medium bg-indigo-900/50 border border-indigo-500 text-indigo-300';
+    }
+
+    function updateTimerDisplay() {
+        const m = Math.floor(state.timerSeconds / 60);
+        const s = state.timerSeconds % 60;
+        const display = `${m}:${s.toString().padStart(2, '0')}`;
+        const el = document.getElementById('timer-display');
+        el.textContent = display;
+
+        // Color urgency
+        if (state.timerSeconds <= 10) {
+            el.className = 'text-6xl font-black font-mono tabular-nums text-red-400';
+        } else if (state.timerSeconds <= 30) {
+            el.className = 'text-6xl font-black font-mono tabular-nums text-amber-400';
+        } else {
+            el.className = 'text-6xl font-black font-mono tabular-nums text-white';
+        }
+    }
+    </script>
+</body>
+</html>

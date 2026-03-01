@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alias – Vocabulary Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        * { -webkit-tap-highlight-color: transparent; user-select: none; }
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        .pop-in { animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .shake { animation: shake 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(40px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes slideOut { to { opacity: 0; transform: translateY(-40px) scale(0.95); } }
+        .word-enter { animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .word-exit { animation: slideOut 0.2s ease-in forwards; }
+        .pulse-glow { animation: pulseGlow 2s ease-in-out infinite; }
+        @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.3); } 50% { box-shadow: 0 0 20px 4px rgba(99, 102, 241, 0.15); } }
+        .score-pop { animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans antialiased min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- ======================== SCREEN: SETUP ======================== -->
+    <div id="screen-setup" class="w-full max-w-md space-y-6 fade-in">
+        <!-- Header -->
+        <div class="text-center space-y-1">
+            <h1 class="text-4xl font-black tracking-tight">
+                <span class="text-amber-400">AL</span><span class="text-indigo-400">IAS</span>
+            </h1>
+            <p class="text-gray-500 text-sm">Describe the word — don't say it!</p>
+        </div>
+
+        <!-- Vocabulary Source -->
+        <div class="bg-gray-900 rounded-2xl p-5 space-y-4 border border-gray-800">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Vocabulary Source</h2>
+
+            <!-- Source Toggle -->
+            <div class="flex rounded-xl bg-gray-800 p-1">
+                <button id="btn-source-sheets" onclick="setSource('sheets')" class="flex-1 py-2 text-sm font-semibold rounded-lg transition-all bg-indigo-600 text-white">
+                    Google Sheets
+                </button>
+                <button id="btn-source-custom" onclick="setSource('custom')" class="flex-1 py-2 text-sm font-semibold rounded-lg transition-all text-gray-400 hover:text-white">
+                    Custom Words
+                </button>
+            </div>
+
+            <!-- Sheets Source -->
+            <div id="source-sheets" class="space-y-3">
+                <!-- Set Collection Dropdown -->
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Set Collection</label>
+                    <select id="select-collection" onchange="onCollectionChange()" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                        <option value="">Loading collections...</option>
+                    </select>
+                </div>
+
+                <!-- Vocabulary Set Dropdown -->
+                <div id="vocab-set-container" class="hidden">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Vocabulary Set</label>
+                    <select id="select-vocab-set" onchange="onVocabSetChange()" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                        <option value="">Select a set...</option>
+                    </select>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div id="sheets-loading" class="hidden text-center py-2">
+                    <div class="inline-block w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span class="text-xs text-gray-500 ml-2">Loading...</span>
+                </div>
+
+                <!-- Word Count Badge -->
+                <div id="word-count-badge" class="hidden">
+                    <span class="inline-flex items-center gap-1.5 bg-indigo-900/40 text-indigo-300 text-xs font-medium px-3 py-1 rounded-full border border-indigo-800/50">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
+                        <span id="word-count-text">0 words loaded</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Custom Source -->
+            <div id="source-custom" class="hidden space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Enter words (comma-separated)</label>
+                    <textarea id="custom-words" rows="4" placeholder="apple, banana, cherry, dog, elephant, forest..."
+                        class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none"
+                        oninput="onCustomWordsChange()"></textarea>
+                </div>
+                <div id="custom-word-count" class="hidden">
+                    <span class="inline-flex items-center gap-1.5 bg-emerald-900/40 text-emerald-300 text-xs font-medium px-3 py-1 rounded-full border border-emerald-800/50">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
+                        <span id="custom-count-text">0 words</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Settings -->
+        <div class="bg-gray-900 rounded-2xl p-5 space-y-4 border border-gray-800">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Game Settings</h2>
+
+            <!-- Teams -->
+            <div class="flex items-center justify-between">
+                <span class="text-sm text-gray-400">Teams</span>
+                <div class="flex items-center gap-3">
+                    <button onclick="adjustTeams(-1)" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm font-bold transition flex items-center justify-center border border-gray-700">−</button>
+                    <span id="team-count" class="text-xl font-bold text-amber-400">2</span>
+                    <button onclick="adjustTeams(1)" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm font-bold transition flex items-center justify-center border border-gray-700">+</button>
+                </div>
+            </div>
+
+            <!-- Rounds -->
+            <div class="flex items-center justify-between pt-2 border-t border-gray-800">
+                <span class="text-sm text-gray-400">Rounds per team</span>
+                <div class="flex items-center gap-3">
+                    <button onclick="adjustRounds(-1)" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm font-bold transition flex items-center justify-center border border-gray-700">−</button>
+                    <span id="round-count" class="text-xl font-bold text-indigo-400">3</span>
+                    <button onclick="adjustRounds(1)" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm font-bold transition flex items-center justify-center border border-gray-700">+</button>
+                </div>
+            </div>
+
+            <!-- Turn Timer -->
+            <div class="flex items-center justify-between pt-2 border-t border-gray-800">
+                <span class="text-sm text-gray-400">Turn timer</span>
+                <div class="flex gap-2">
+                    <button onclick="setTurnDuration(30)" class="turn-dur px-3 py-1 rounded-lg text-xs font-medium bg-gray-800 border border-gray-700 hover:border-indigo-500 transition">0:30</button>
+                    <button onclick="setTurnDuration(45)" class="turn-dur px-3 py-1 rounded-lg text-xs font-medium bg-gray-800 border border-gray-700 hover:border-indigo-500 transition">0:45</button>
+                    <button onclick="setTurnDuration(60)" class="turn-dur px-3 py-1 rounded-lg text-xs font-medium bg-indigo-900/50 border border-indigo-500 text-indigo-300">1:00</button>
+                    <button onclick="setTurnDuration(90)" class="turn-dur px-3 py-1 rounded-lg text-xs font-medium bg-gray-800 border border-gray-700 hover:border-indigo-500 transition">1:30</button>
+                </div>
+            </div>
+
+            <!-- Skip Penalty -->
+            <div class="flex items-center justify-between pt-2 border-t border-gray-800">
+                <div>
+                    <span class="text-sm text-gray-400">Skip penalty</span>
+                    <p class="text-xs text-gray-600">−1 point per skip</p>
+                </div>
+                <button id="btn-penalty" onclick="togglePenalty()" class="relative w-11 h-6 rounded-full bg-indigo-600 transition-colors">
+                    <span id="penalty-knob" class="absolute top-0.5 left-5 w-5 h-5 bg-white rounded-full shadow transition-all"></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Start Button -->
+        <button id="btn-start" onclick="startGame()" disabled
+            class="w-full py-4 rounded-2xl font-bold text-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white shadow-lg shadow-indigo-900/30">
+            Start Game
+        </button>
+    </div>
+
+    <!-- ======================== SCREEN: TURN INTRO ======================== -->
+    <div id="screen-turn-intro" class="w-full max-w-md hidden">
+        <div class="text-center space-y-6 fade-in">
+            <div class="space-y-2">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">Round <span id="intro-round">1</span> of <span id="intro-total-rounds">3</span></p>
+                <div id="intro-team-emoji" class="text-6xl">🟡</div>
+                <h2 id="intro-team-name" class="text-3xl font-black text-amber-400">Team 1</h2>
+                <p class="text-gray-400 text-sm">Get ready! One player describes, the others guess.</p>
+            </div>
+
+            <!-- Scoreboard (mini) -->
+            <div id="intro-scoreboard" class="flex justify-center gap-4"></div>
+
+            <button onclick="startTurn()" class="w-full py-4 rounded-2xl font-bold text-lg transition-all bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white shadow-lg shadow-indigo-900/30 pulse-glow">
+                Start Turn
+            </button>
+
+            <button onclick="backToSetup()" class="text-xs text-gray-600 hover:text-gray-400 transition">← Back to setup</button>
+        </div>
+    </div>
+
+    <!-- ======================== SCREEN: PLAY ======================== -->
+    <div id="screen-play" class="w-full max-w-md hidden">
+        <div class="space-y-5 fade-in">
+            <!-- Top bar: timer + team info -->
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span id="play-team-dot" class="w-3 h-3 rounded-full bg-amber-400"></span>
+                    <span id="play-team-label" class="text-sm font-semibold text-gray-400">Team 1</span>
+                </div>
+                <div id="play-timer" class="text-2xl font-black font-mono tabular-nums text-white">1:00</div>
+                <div class="text-sm text-gray-500">
+                    Rd <span id="play-round-num">1</span>/<span id="play-total-rounds">3</span>
+                </div>
+            </div>
+
+            <!-- Timer bar -->
+            <div class="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                <div id="play-timer-bar" class="h-full bg-indigo-500 rounded-full transition-all duration-1000" style="width: 100%"></div>
+            </div>
+
+            <!-- Word card -->
+            <div id="word-card" class="bg-gray-900 rounded-3xl border border-gray-800 p-8 text-center min-h-[200px] flex flex-col items-center justify-center relative overflow-hidden">
+                <p id="current-word" class="text-3xl font-black text-white leading-tight word-enter"></p>
+                <p class="text-xs text-gray-600 mt-3">Describe this word!</p>
+            </div>
+
+            <!-- Turn score -->
+            <div class="text-center">
+                <span class="text-xs text-gray-500">This turn:</span>
+                <span id="turn-score" class="text-lg font-bold text-indigo-400 ml-1">0</span>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="flex gap-3">
+                <button id="btn-skip" onclick="skipWord()" class="flex-1 py-4 rounded-2xl font-bold text-base transition-all bg-gray-800 hover:bg-gray-700 border border-gray-700 active:scale-[0.96] text-red-400">
+                    ✕ Skip
+                </button>
+                <button id="btn-correct" onclick="correctWord()" class="flex-1 py-4 rounded-2xl font-bold text-base transition-all bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white shadow-lg shadow-emerald-900/30">
+                    ✓ Correct!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================== SCREEN: TURN RESULT ======================== -->
+    <div id="screen-turn-result" class="w-full max-w-md hidden">
+        <div class="text-center space-y-6 fade-in">
+            <div class="space-y-2">
+                <div class="text-5xl pop-in">⏱️</div>
+                <h2 class="text-2xl font-black">Time's Up!</h2>
+                <p id="turn-result-team" class="text-gray-400 text-sm">Team 1 scored this turn:</p>
+            </div>
+
+            <div id="turn-result-score" class="text-6xl font-black text-indigo-400 score-pop">0</div>
+
+            <!-- Word breakdown -->
+            <div class="bg-gray-900 rounded-2xl p-4 border border-gray-800 text-left max-h-48 overflow-y-auto space-y-1">
+                <p class="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">Words this turn</p>
+                <div id="turn-word-list"></div>
+            </div>
+
+            <button onclick="nextTurn()" class="w-full py-4 rounded-2xl font-bold text-lg transition-all bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white shadow-lg shadow-indigo-900/30">
+                Next Turn
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================== SCREEN: FINAL ======================== -->
+    <div id="screen-final" class="w-full max-w-md hidden">
+        <div class="text-center space-y-6 fade-in">
+            <div class="space-y-2">
+                <div class="text-6xl pop-in">🏆</div>
+                <h2 class="text-2xl font-black">Game Over!</h2>
+            </div>
+
+            <!-- Winner -->
+            <div id="winner-banner" class="bg-gradient-to-br from-amber-900/40 to-amber-800/20 border border-amber-500/30 rounded-2xl p-5 pop-in">
+                <p class="text-xs text-amber-400 uppercase tracking-widest font-semibold">Winner</p>
+                <p id="winner-name" class="text-3xl font-black text-amber-400 mt-1">Team 1</p>
+                <p id="winner-score" class="text-lg text-amber-300/70 font-semibold">12 points</p>
+            </div>
+
+            <!-- All scores -->
+            <div id="final-scoreboard" class="space-y-2"></div>
+
+            <div class="flex gap-3">
+                <button onclick="startGame()" class="flex-1 py-3.5 rounded-2xl font-bold text-base transition-all bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98]">
+                    Play Again
+                </button>
+                <button onclick="backToSetup()" class="flex-1 py-3.5 rounded-2xl font-bold text-base transition-all bg-gray-800 hover:bg-gray-700 border border-gray-700 active:scale-[0.98]">
+                    New Setup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ═══════════════════════════════════════════
+    //  STATE
+    // ═══════════════════════════════════════════
+    const SPREADSHEET_ID = '1HGKRjjWsGjGaSHOj5q7hGRSv9eorC61vSwkXAMC_r9c';
+    const MASTER_GID = '2104177411';
+
+    const TEAM_COLORS = ['amber', 'indigo', 'emerald', 'rose', 'purple', 'cyan'];
+    const TEAM_EMOJIS = ['🟡', '🔵', '🟢', '🔴', '🟣', '🩵'];
+    const TEAM_TW = {
+        amber:   { text: 'text-amber-400',   bg: 'bg-amber-400',   border: 'border-amber-500/30', fill: 'bg-amber-900/40' },
+        indigo:  { text: 'text-indigo-400',  bg: 'bg-indigo-400',  border: 'border-indigo-500/30', fill: 'bg-indigo-900/40' },
+        emerald: { text: 'text-emerald-400', bg: 'bg-emerald-400', border: 'border-emerald-500/30', fill: 'bg-emerald-900/40' },
+        rose:    { text: 'text-rose-400',    bg: 'bg-rose-400',    border: 'border-rose-500/30', fill: 'bg-rose-900/40' },
+        purple:  { text: 'text-purple-400',  bg: 'bg-purple-400',  border: 'border-purple-500/30', fill: 'bg-purple-900/40' },
+        cyan:    { text: 'text-cyan-400',    bg: 'bg-cyan-400',    border: 'border-cyan-500/30', fill: 'bg-cyan-900/40' },
+    };
+
+    let state = {
+        source: 'sheets',
+        collections: [],
+        currentCollection: null,
+        vocabSets: [],
+        currentVocab: [],
+        // Settings
+        teamCount: 2,
+        roundsPerTeam: 3,
+        turnDuration: 60,
+        skipPenalty: true,
+        // Game state
+        scores: [],            // score per team
+        currentTeam: 0,        // index
+        currentRound: 0,       // 0-based, increments after all teams play
+        turnsPlayed: 0,        // total turns played
+        wordPool: [],          // shuffled copy to draw from
+        wordIndex: 0,          // position in the pool
+        turnWords: [],         // [{word, result: 'correct'|'skipped'}, ...]
+        turnScore: 0,
+        timerSeconds: 60,
+        timerInterval: null,
+        timerRunning: false,
+    };
+
+    // ═══════════════════════════════════════════
+    //  INIT
+    // ═══════════════════════════════════════════
+    document.addEventListener('DOMContentLoaded', () => {
+        loadMasterSheet();
+    });
+
+    // ═══════════════════════════════════════════
+    //  DATA LOADING
+    // ═══════════════════════════════════════════
+    function sheetUrl(gid) {
+        return `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${gid}`;
+    }
+
+    function loadMasterSheet() {
+        fetchCSV(sheetUrl(MASTER_GID), (results) => {
+            const rows = results.data.filter(r => r['Set Collection Name']);
+            state.collections = rows;
+            populateCollections();
+        });
+    }
+
+    function fetchCSV(url, callback) {
+        Papa.parse(url, {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: callback,
+            error: (err) => console.error('CSV fetch error:', err)
+        });
+    }
+
+    function populateCollections() {
+        const sel = document.getElementById('select-collection');
+        sel.innerHTML = '<option value="">— Select a collection —</option>';
+
+        const seen = new Set();
+        state.collections.forEach(row => {
+            const name = row['Set Collection Name'];
+            if (!seen.has(name)) {
+                seen.add(name);
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                sel.appendChild(opt);
+            }
+        });
+    }
+
+    function onCollectionChange() {
+        const name = document.getElementById('select-collection').value;
+        const container = document.getElementById('vocab-set-container');
+        const badge = document.getElementById('word-count-badge');
+
+        if (!name) {
+            container.classList.add('hidden');
+            badge.classList.add('hidden');
+            state.currentCollection = null;
+            state.currentVocab = [];
+            updateStartButton();
+            return;
+        }
+
+        const collectionRows = state.collections.filter(r => r['Set Collection Name'] === name);
+        state.currentCollection = collectionRows;
+        loadTab(collectionRows[0]);
+    }
+
+    function loadTab(tabRow) {
+        const loading = document.getElementById('sheets-loading');
+        const container = document.getElementById('vocab-set-container');
+        const badge = document.getElementById('word-count-badge');
+
+        loading.classList.remove('hidden');
+        container.classList.add('hidden');
+        badge.classList.add('hidden');
+
+        fetchCSV(sheetUrl(tabRow['GID']), (results) => {
+            loading.classList.add('hidden');
+            const type = (tabRow['Type'] || '').trim();
+            const rows = results.data;
+
+            if (type === 'Textbook') {
+                parseTextbookTab(rows);
+            } else if (type === 'Set') {
+                parseSetTab(rows);
+            }
+        });
+    }
+
+    function parseTextbookTab(rows) {
+        // Build individual text sets + chapter groupings
+        const sets = [];
+        const chapterMap = {};  // chapter -> {label, words[]}
+
+        rows.forEach(row => {
+            const title = (row['Text Title'] || '').trim();
+            const page = (row['Page Number'] || '').trim();
+            const chapter = (row['Chapter'] || '').trim();
+            const vocabRaw = (row['Sidebar Vocabulary'] || '').trim();
+            if (!title || !vocabRaw) return;
+
+            const label = `${title} (p. ${page}, ch. ${chapter})`;
+            const words = vocabRaw.split(',').map(w => w.trim()).filter(Boolean);
+            if (words.length === 0) return;
+
+            sets.push({ label, words, chapter });
+
+            // Aggregate by chapter
+            if (!chapterMap[chapter]) {
+                chapterMap[chapter] = { label: `Chapter ${chapter}`, words: [] };
+            }
+            chapterMap[chapter].words.push(...words);
+        });
+
+        // Build chapter sets (sorted by chapter number/name)
+        const chapterSets = Object.keys(chapterMap)
+            .sort((a, b) => {
+                const na = parseFloat(a), nb = parseFloat(b);
+                if (!isNaN(na) && !isNaN(nb)) return na - nb;
+                return a.localeCompare(b);
+            })
+            .map(ch => chapterMap[ch]);
+
+        state.vocabSets = sets;
+        populateTextbookDropdown(sets, chapterSets);
+    }
+
+    function populateTextbookDropdown(textSets, chapterSets) {
+        const container = document.getElementById('vocab-set-container');
+        const sel = document.getElementById('select-vocab-set');
+        sel.innerHTML = '<option value="">— Select a vocabulary set —</option>';
+
+        const allWords = textSets.flatMap(s => s.words);
+
+        // All words option
+        if (allWords.length > 0) {
+            const opt = document.createElement('option');
+            opt.value = '__ALL__';
+            opt.textContent = `All words (${allWords.length})`;
+            sel.appendChild(opt);
+        }
+
+        // Chapter groups
+        if (chapterSets.length > 1) {
+            const group = document.createElement('optgroup');
+            group.label = 'By Chapter';
+            chapterSets.forEach((ch, i) => {
+                const opt = document.createElement('option');
+                opt.value = `__CH__${i}`;
+                opt.textContent = `${ch.label} (${ch.words.length} words)`;
+                sel.appendChild(opt);
+            });
+            sel.appendChild(group);
+        }
+
+        // Store chapter sets for later lookup
+        state._chapterSets = chapterSets;
+
+        // Individual texts
+        if (textSets.length > 0) {
+            const group = document.createElement('optgroup');
+            group.label = 'By Text';
+            textSets.forEach((s, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = `${s.label} (${s.words.length} words)`;
+                group.appendChild(opt);
+            });
+            sel.appendChild(group);
+        }
+
+        container.classList.remove('hidden');
+        state.currentVocab = [];
+        updateStartButton();
+    }
+
+    function parseSetTab(rows) {
+        const sets = [];
+        rows.forEach(row => {
+            const name = (row['Set Name'] || row['Set name'] || '').trim();
+            const vocabRaw = (row['Vocabulary'] || '').trim();
+            if (!name || !vocabRaw) return;
+
+            const words = vocabRaw.split(',').map(w => w.trim()).filter(Boolean);
+            if (words.length > 0) {
+                sets.push({ label: name, words });
+            }
+        });
+        state.vocabSets = sets;
+        state._chapterSets = [];
+        populateVocabSets(sets);
+    }
+
+    function populateVocabSets(sets) {
+        const container = document.getElementById('vocab-set-container');
+        const sel = document.getElementById('select-vocab-set');
+
+        sel.innerHTML = '<option value="">— Select a vocabulary set —</option>';
+
+        const allWords = sets.flatMap(s => s.words);
+        if (allWords.length > 0) {
+            const opt = document.createElement('option');
+            opt.value = '__ALL__';
+            opt.textContent = `All words (${allWords.length})`;
+            sel.appendChild(opt);
+        }
+
+        sets.forEach((s, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = `${s.label} (${s.words.length} words)`;
+            sel.appendChild(opt);
+        });
+
+        container.classList.remove('hidden');
+        state.currentVocab = [];
+        updateStartButton();
+    }
+
+    function onVocabSetChange() {
+        const val = document.getElementById('select-vocab-set').value;
+        const badge = document.getElementById('word-count-badge');
+        const countText = document.getElementById('word-count-text');
+
+        if (val === '') {
+            state.currentVocab = [];
+            badge.classList.add('hidden');
+        } else if (val === '__ALL__') {
+            state.currentVocab = state.vocabSets.flatMap(s => s.words);
+            countText.textContent = `${state.currentVocab.length} words loaded`;
+            badge.classList.remove('hidden');
+        } else if (val.startsWith('__CH__')) {
+            const idx = parseInt(val.replace('__CH__', ''));
+            state.currentVocab = state._chapterSets[idx].words;
+            countText.textContent = `${state.currentVocab.length} words loaded`;
+            badge.classList.remove('hidden');
+        } else {
+            const idx = parseInt(val);
+            state.currentVocab = state.vocabSets[idx].words;
+            countText.textContent = `${state.currentVocab.length} words loaded`;
+            badge.classList.remove('hidden');
+        }
+
+        updateStartButton();
+    }
+
+    function onCustomWordsChange() {
+        const raw = document.getElementById('custom-words').value;
+        const words = raw.split(',').map(w => w.trim()).filter(Boolean);
+        state.currentVocab = words;
+
+        const countEl = document.getElementById('custom-word-count');
+        const countText = document.getElementById('custom-count-text');
+        if (words.length > 0) {
+            countText.textContent = `${words.length} words`;
+            countEl.classList.remove('hidden');
+        } else {
+            countEl.classList.add('hidden');
+        }
+
+        updateStartButton();
+    }
+
+    // ═══════════════════════════════════════════
+    //  SOURCE TOGGLE
+    // ═══════════════════════════════════════════
+    function setSource(src) {
+        state.source = src;
+        const btnSheets = document.getElementById('btn-source-sheets');
+        const btnCustom = document.getElementById('btn-source-custom');
+        const srcSheets = document.getElementById('source-sheets');
+        const srcCustom = document.getElementById('source-custom');
+
+        if (src === 'sheets') {
+            btnSheets.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all bg-indigo-600 text-white';
+            btnCustom.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all text-gray-400 hover:text-white';
+            srcSheets.classList.remove('hidden');
+            srcCustom.classList.add('hidden');
+        } else {
+            btnCustom.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all bg-indigo-600 text-white';
+            btnSheets.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all text-gray-400 hover:text-white';
+            srcCustom.classList.remove('hidden');
+            srcSheets.classList.add('hidden');
+        }
+
+        if (src === 'custom') {
+            onCustomWordsChange();
+        } else {
+            onVocabSetChange();
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    //  SETTINGS
+    // ═══════════════════════════════════════════
+    function adjustTeams(delta) {
+        state.teamCount = Math.max(2, Math.min(6, state.teamCount + delta));
+        document.getElementById('team-count').textContent = state.teamCount;
+    }
+
+    function adjustRounds(delta) {
+        state.roundsPerTeam = Math.max(1, Math.min(10, state.roundsPerTeam + delta));
+        document.getElementById('round-count').textContent = state.roundsPerTeam;
+    }
+
+    function setTurnDuration(seconds) {
+        state.turnDuration = seconds;
+        document.querySelectorAll('.turn-dur').forEach(btn => {
+            btn.className = 'turn-dur px-3 py-1 rounded-lg text-xs font-medium bg-gray-800 border border-gray-700 hover:border-indigo-500 transition';
+        });
+        event.target.className = 'turn-dur px-3 py-1 rounded-lg text-xs font-medium bg-indigo-900/50 border border-indigo-500 text-indigo-300';
+    }
+
+    function togglePenalty() {
+        state.skipPenalty = !state.skipPenalty;
+        const btn = document.getElementById('btn-penalty');
+        const knob = document.getElementById('penalty-knob');
+        if (state.skipPenalty) {
+            btn.className = 'relative w-11 h-6 rounded-full bg-indigo-600 transition-colors';
+            knob.className = 'absolute top-0.5 left-5 w-5 h-5 bg-white rounded-full shadow transition-all';
+        } else {
+            btn.className = 'relative w-11 h-6 rounded-full bg-gray-700 transition-colors';
+            knob.className = 'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-all';
+        }
+    }
+
+    function updateStartButton() {
+        const btn = document.getElementById('btn-start');
+        btn.disabled = state.currentVocab.length < 2;
+    }
+
+    // ═══════════════════════════════════════════
+    //  SCREENS
+    // ═══════════════════════════════════════════
+    function showScreen(name) {
+        ['setup', 'turn-intro', 'play', 'turn-result', 'final'].forEach(s => {
+            const el = document.getElementById(`screen-${s}`);
+            if (s === name) {
+                el.classList.remove('hidden');
+                el.querySelector('.fade-in')?.classList.remove('fade-in');
+                void el.offsetWidth;
+                el.querySelector(':scope > div')?.classList.add('fade-in');
+            } else {
+                el.classList.add('hidden');
+            }
+        });
+    }
+
+    function backToSetup() {
+        stopTimer();
+        showScreen('setup');
+    }
+
+    // ═══════════════════════════════════════════
+    //  GAME FLOW
+    // ═══════════════════════════════════════════
+    function startGame() {
+        if (state.currentVocab.length < 2) return;
+
+        state.scores = Array(state.teamCount).fill(0);
+        state.currentTeam = 0;
+        state.currentRound = 0;
+        state.turnsPlayed = 0;
+        state.wordPool = shuffle([...state.currentVocab]);
+        state.wordIndex = 0;
+
+        showTurnIntro();
+    }
+
+    function showTurnIntro() {
+        const team = state.currentTeam;
+        const round = state.currentRound;
+        const color = TEAM_COLORS[team];
+        const tw = TEAM_TW[color];
+
+        document.getElementById('intro-round').textContent = round + 1;
+        document.getElementById('intro-total-rounds').textContent = state.roundsPerTeam;
+        document.getElementById('intro-team-emoji').textContent = TEAM_EMOJIS[team];
+        document.getElementById('intro-team-name').textContent = `Team ${team + 1}`;
+        document.getElementById('intro-team-name').className = `text-3xl font-black ${tw.text}`;
+
+        // Mini scoreboard
+        const sb = document.getElementById('intro-scoreboard');
+        sb.innerHTML = '';
+        for (let t = 0; t < state.teamCount; t++) {
+            const tc = TEAM_COLORS[t];
+            const ttw = TEAM_TW[tc];
+            const div = document.createElement('div');
+            div.className = `${ttw.fill} ${ttw.border} border rounded-xl px-4 py-2 text-center ${t === team ? 'ring-2 ring-white/20' : ''}`;
+            div.innerHTML = `
+                <p class="text-xs ${ttw.text} font-semibold">Team ${t + 1}</p>
+                <p class="text-xl font-black ${ttw.text}">${state.scores[t]}</p>
+            `;
+            sb.appendChild(div);
+        }
+
+        showScreen('turn-intro');
+    }
+
+    function startTurn() {
+        const team = state.currentTeam;
+        const color = TEAM_COLORS[team];
+        const tw = TEAM_TW[color];
+
+        state.turnWords = [];
+        state.turnScore = 0;
+        state.timerSeconds = state.turnDuration;
+
+        // Set up play screen
+        document.getElementById('play-team-dot').className = `w-3 h-3 rounded-full ${tw.bg}`;
+        document.getElementById('play-team-label').textContent = `Team ${team + 1}`;
+        document.getElementById('play-round-num').textContent = state.currentRound + 1;
+        document.getElementById('play-total-rounds').textContent = state.roundsPerTeam;
+        document.getElementById('turn-score').textContent = '0';
+
+        updatePlayTimer();
+        showNextWord();
+        showScreen('play');
+
+        // Start countdown
+        state.timerRunning = true;
+        state.timerInterval = setInterval(() => {
+            state.timerSeconds--;
+            updatePlayTimer();
+            if (state.timerSeconds <= 0) {
+                endTurn();
+            }
+        }, 1000);
+    }
+
+    function updatePlayTimer() {
+        const m = Math.floor(state.timerSeconds / 60);
+        const s = state.timerSeconds % 60;
+        const display = `${m}:${s.toString().padStart(2, '0')}`;
+        const el = document.getElementById('play-timer');
+        el.textContent = display;
+
+        // Color urgency
+        if (state.timerSeconds <= 5) {
+            el.className = 'text-2xl font-black font-mono tabular-nums text-red-400 shake';
+        } else if (state.timerSeconds <= 10) {
+            el.className = 'text-2xl font-black font-mono tabular-nums text-red-400';
+        } else if (state.timerSeconds <= 20) {
+            el.className = 'text-2xl font-black font-mono tabular-nums text-amber-400';
+        } else {
+            el.className = 'text-2xl font-black font-mono tabular-nums text-white';
+        }
+
+        // Timer bar
+        const pct = (state.timerSeconds / state.turnDuration) * 100;
+        const bar = document.getElementById('play-timer-bar');
+        bar.style.width = `${pct}%`;
+        if (state.timerSeconds <= 10) {
+            bar.className = 'h-full bg-red-500 rounded-full transition-all duration-1000';
+        } else if (state.timerSeconds <= 20) {
+            bar.className = 'h-full bg-amber-500 rounded-full transition-all duration-1000';
+        } else {
+            bar.className = 'h-full bg-indigo-500 rounded-full transition-all duration-1000';
+        }
+    }
+
+    function showNextWord() {
+        // If we've gone through all words, reshuffle
+        if (state.wordIndex >= state.wordPool.length) {
+            state.wordPool = shuffle([...state.currentVocab]);
+            state.wordIndex = 0;
+        }
+
+        const word = state.wordPool[state.wordIndex];
+        const el = document.getElementById('current-word');
+
+        // Animate out then in
+        el.classList.remove('word-enter');
+        el.classList.add('word-exit');
+
+        setTimeout(() => {
+            el.textContent = word;
+            el.classList.remove('word-exit');
+            el.classList.add('word-enter');
+        }, 150);
+    }
+
+    function correctWord() {
+        if (!state.timerRunning) return;
+        const word = state.wordPool[state.wordIndex];
+        state.turnWords.push({ word, result: 'correct' });
+        state.turnScore++;
+        state.wordIndex++;
+        document.getElementById('turn-score').textContent = state.turnScore;
+        showNextWord();
+    }
+
+    function skipWord() {
+        if (!state.timerRunning) return;
+        const word = state.wordPool[state.wordIndex];
+        state.turnWords.push({ word, result: 'skipped' });
+        if (state.skipPenalty) {
+            state.turnScore--;
+        }
+        state.wordIndex++;
+        document.getElementById('turn-score').textContent = state.turnScore;
+        showNextWord();
+    }
+
+    function endTurn() {
+        stopTimer();
+
+        const team = state.currentTeam;
+        state.scores[team] += state.turnScore;
+        state.turnsPlayed++;
+
+        // Show turn result
+        const color = TEAM_COLORS[team];
+        const tw = TEAM_TW[color];
+
+        document.getElementById('turn-result-team').innerHTML = `<span class="${tw.text} font-semibold">Team ${team + 1}</span> scored this turn:`;
+        document.getElementById('turn-result-score').textContent = state.turnScore;
+        document.getElementById('turn-result-score').className = `text-6xl font-black ${tw.text} score-pop`;
+
+        // Word breakdown
+        const listEl = document.getElementById('turn-word-list');
+        listEl.innerHTML = '';
+        state.turnWords.forEach(({ word, result }) => {
+            const div = document.createElement('div');
+            div.className = `flex items-center justify-between py-1 px-2 rounded-lg ${result === 'correct' ? 'text-emerald-400' : 'text-red-400'}`;
+            div.innerHTML = `
+                <span class="text-sm">${word}</span>
+                <span class="text-xs font-semibold">${result === 'correct' ? '+1' : (state.skipPenalty ? '−1' : '0')}</span>
+            `;
+            listEl.appendChild(div);
+        });
+
+        if (state.turnWords.length === 0) {
+            listEl.innerHTML = '<p class="text-sm text-gray-600 text-center py-2">No words attempted</p>';
+        }
+
+        showScreen('turn-result');
+    }
+
+    function nextTurn() {
+        // Advance to next team, or next round
+        state.currentTeam++;
+        if (state.currentTeam >= state.teamCount) {
+            state.currentTeam = 0;
+            state.currentRound++;
+        }
+
+        // Check if game is over
+        if (state.currentRound >= state.roundsPerTeam) {
+            showFinal();
+            return;
+        }
+
+        showTurnIntro();
+    }
+
+    function showFinal() {
+        // Find winner (highest score)
+        let maxScore = -Infinity;
+        let winnerIdx = 0;
+        state.scores.forEach((s, i) => {
+            if (s > maxScore) { maxScore = s; winnerIdx = i; }
+        });
+
+        // Check for tie
+        const tiedTeams = state.scores
+            .map((s, i) => ({ score: s, team: i }))
+            .filter(t => t.score === maxScore);
+
+        const winColor = TEAM_COLORS[winnerIdx];
+        const winTw = TEAM_TW[winColor];
+
+        if (tiedTeams.length > 1) {
+            document.getElementById('winner-name').textContent = tiedTeams.map(t => `Team ${t.team + 1}`).join(' & ');
+            document.getElementById('winner-name').className = `text-3xl font-black text-white mt-1`;
+            document.getElementById('winner-score').textContent = `Tied at ${maxScore} points!`;
+        } else {
+            document.getElementById('winner-name').textContent = `Team ${winnerIdx + 1}`;
+            document.getElementById('winner-name').className = `text-3xl font-black ${winTw.text} mt-1`;
+            document.getElementById('winner-score').textContent = `${maxScore} point${maxScore !== 1 ? 's' : ''}`;
+        }
+
+        // Full scoreboard
+        const sb = document.getElementById('final-scoreboard');
+        sb.innerHTML = '';
+        const sorted = state.scores
+            .map((s, i) => ({ score: s, team: i }))
+            .sort((a, b) => b.score - a.score);
+
+        sorted.forEach(({ score, team }, rank) => {
+            const tc = TEAM_COLORS[team];
+            const ttw = TEAM_TW[tc];
+            const div = document.createElement('div');
+            div.className = `flex items-center justify-between ${ttw.fill} ${ttw.border} border rounded-xl px-4 py-3`;
+            div.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="text-lg">${rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : `#${rank + 1}`}</span>
+                    <span class="font-bold ${ttw.text}">Team ${team + 1}</span>
+                </div>
+                <span class="text-xl font-black ${ttw.text}">${score}</span>
+            `;
+            sb.appendChild(div);
+        });
+
+        showScreen('final');
+    }
+
+    function stopTimer() {
+        state.timerRunning = false;
+        clearInterval(state.timerInterval);
+    }
+
+    // ═══════════════════════════════════════════
+    //  UTILITIES
+    // ═══════════════════════════════════════════
+    function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+    </script>
+</body>
+</html>

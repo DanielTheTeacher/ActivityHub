@@ -1,0 +1,724 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planner | Classroom OS</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <!-- SortableJS for drag-and-drop timeline -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <!-- Shared Data Logic -->
+    <script src="data.js"></script>
+
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .modal-enter { animation: fadeIn 0.2s ease-out forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; backdrop-filter: blur(0px); }
+            to { opacity: 1; backdrop-filter: blur(4px); }
+        }
+
+        .ghost-card { opacity: 0.4; background: #f8fafc; border: 2px dashed #94a3b8; }
+        .drag-handle { cursor: grab; }
+        .drag-handle:active { cursor: grabbing; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased flex h-screen overflow-hidden">
+
+    <!-- Sidebar Placeholder -->
+    <div id="sidebar-placeholder" class="transition-opacity duration-300"></div>
+
+    <!-- Main Content Layout -->
+    <main class="flex-1 w-full md:ml-48 h-full flex flex-col relative transition-all duration-300">
+        
+        <!-- Header / Matcher & Filters Controls -->
+        <header class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10 flex-shrink-0">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center">
+                    <button id="mobileMenuBtn" class="md:hidden mr-3 text-gray-500 hover:text-gray-900 focus:outline-none hidden">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
+                    <h1 class="text-xl font-bold text-gray-900 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        Lesson Planner
+                    </h1>
+                </div>
+                
+                <button onclick="generateLessonLink()" id="generateLinkBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-md text-sm font-medium shadow-sm transition flex items-center">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                    Generate Lesson Link
+                </button>
+            </div>
+            
+            <!-- Context Selectors -->
+            <div class="flex flex-wrap gap-3 bg-gray-50 p-2 rounded-md border border-gray-100 mb-3">
+                <div class="flex flex-col flex-1 min-w-[150px]">
+                    <label class="text-[10px] uppercase font-bold text-gray-500 mb-1 tracking-wider">1. Select Textbook</label>
+                    <select id="bookSelect" class="w-full border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm py-1.5 px-2 bg-white" disabled>
+                        <option value="">Loading Books...</option>
+                    </select>
+                </div>
+                
+                <div class="flex flex-col flex-1 min-w-[150px]">
+                    <label class="text-[10px] uppercase font-bold text-gray-500 mb-1 tracking-wider">2. Select Chapter</label>
+                    <select id="chapterSelect" class="w-full border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm py-1.5 px-2 bg-white" disabled>
+                        <option value="">Select a book first</option>
+                    </select>
+                </div>
+
+                <div class="flex flex-col flex-1 min-w-[150px]">
+                    <label class="text-[10px] uppercase font-bold text-gray-500 mb-1 tracking-wider">3. Select Specific Text</label>
+                    <select id="textSelect" class="w-full border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm py-1.5 px-2 bg-white" disabled>
+                        <option value="">Select a chapter first</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Filters Row -->
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </div>
+                    <input type="text" id="searchBar" placeholder="Search activities..." oninput="applyFiltersAndMatching()" class="block w-48 focus:w-80 pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all duration-300 ease-in-out">
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 bg-gray-50 p-1.5 rounded border border-gray-100">
+                    <select id="filterCategory" onchange="applyFiltersAndMatching()" class="border-gray-300 rounded text-xs focus:ring-blue-500 focus:border-blue-500 shadow-sm py-1.5 px-2 bg-white max-w-[150px] truncate">
+                        <option value="">All Categories</option>
+                    </select>
+
+                    <select id="filterTime" onchange="applyFiltersAndMatching()" class="border-gray-300 rounded text-xs focus:ring-blue-500 focus:border-blue-500 shadow-sm py-1.5 px-2 bg-white">
+                        <option value="">Any Time</option>
+                        <option value="bell-ringer">Bell-ringer (≤15m)</option>
+                        <option value="long">Long (>15m)</option>
+                    </select>
+
+                    <select id="filterDynamic" onchange="applyFiltersAndMatching()" class="border-gray-300 rounded text-xs focus:ring-blue-500 focus:border-blue-500 shadow-sm py-1.5 px-2 bg-white max-w-[150px] truncate">
+                        <option value="">Any Dynamic</option>
+                    </select>
+
+                    <div class="hidden sm:block w-px h-5 bg-gray-300 mx-1"></div>
+
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Levels:</span>
+                        <div id="levelCheckboxes" class="flex flex-wrap gap-1.5"></div>
+                    </div>
+
+                    <div class="hidden sm:block w-px h-5 bg-gray-300 mx-1"></div>
+
+                    <label class="flex items-center space-x-1.5 bg-white px-2 py-1 border border-gray-300 rounded shadow-sm cursor-pointer hover:bg-gray-50 transition">
+                        <input type="checkbox" id="filterNoPrep" onchange="applyFiltersAndMatching()" class="form-checkbox rounded-sm text-blue-600 w-3.5 h-3.5 focus:ring-blue-500">
+                        <span class="text-xs font-medium text-gray-700">No Prep</span>
+                    </label>
+                    
+                    <button onclick="resetFilters()" class="text-xs text-blue-600 hover:text-blue-800 ml-2 font-medium">Clear Filters</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Workspace: Split View -->
+        <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+            
+            <!-- Left Pane: Match Results -->
+            <section class="flex-1 h-full overflow-y-auto p-6 bg-gray-50 border-r border-gray-200" id="resultsPane">
+                <div class="mb-4 flex justify-between items-end">
+                    <h2 class="text-lg font-bold text-gray-800">Available Activities</h2>
+                    <span id="matchCount" class="text-sm text-gray-500 font-medium">0 results</span>
+                </div>
+
+                <div id="loadingState" class="hidden flex-col items-center justify-center h-48 text-gray-500">
+                    <svg class="animate-spin h-8 w-8 text-blue-600 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <p class="text-sm font-medium" id="loadingText">Analyzing curriculum...</p>
+                </div>
+
+                <div id="emptyState" class="flex flex-col items-center justify-center h-48 text-gray-400 text-center">
+                    <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    <p class="text-sm font-medium">No activities match your filters or selection.</p>
+                </div>
+
+                <div id="resultsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+                    <!-- Cards injected here -->
+                </div>
+            </section>
+
+            <!-- Right Pane: Lesson Timeline -->
+            <aside class="w-full lg:w-96 h-1/2 lg:h-full flex flex-col bg-white border-t lg:border-t-0 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] z-10 flex-shrink-0">
+                <div class="p-4 border-b border-gray-100 bg-gray-900 text-white flex justify-between items-center">
+                    <h2 class="font-bold text-sm tracking-wide uppercase flex items-center">
+                        <svg class="w-4 h-4 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+                        Lesson Timeline
+                    </h2>
+                    <span id="timelineTime" class="text-xs bg-gray-800 px-2 py-1 rounded text-gray-300 font-medium">0 items</span>
+                </div>
+                
+                <div id="timelineContainer" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 min-h-[200px]">
+                    <!-- Timeline items injected here -->
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <!-- Fullscreen Modal for Activity Preview -->
+    <div id="activityModal" class="hidden fixed inset-0 bg-gray-900/95 z-50 modal-enter flex items-center justify-center p-4 sm:p-8">
+        <button onclick="closeModal()" class="absolute top-4 right-6 text-white text-4xl hover:text-gray-300 transition z-50">&times;</button>
+        <div id="modalContent" class="w-full h-full relative flex items-center justify-center max-w-5xl mx-auto overflow-hidden"></div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // State variables
+        let allActivities = [];
+        let masterIndex = [];
+        let chaptersOverview = [];
+        let currentBookTexts = [];
+        let timelineActivities = [];
+        let currentTargetKeywords = [];
+
+        // DOM Elements
+        const DOM = {
+            bookSelect: document.getElementById('bookSelect'),
+            chapterSelect: document.getElementById('chapterSelect'),
+            textSelect: document.getElementById('textSelect'),
+            resultsGrid: document.getElementById('resultsGrid'),
+            emptyState: document.getElementById('emptyState'),
+            loadingState: document.getElementById('loadingState'),
+            matchCount: document.getElementById('matchCount'),
+            timelineContainer: document.getElementById('timelineContainer'),
+            timelineTime: document.getElementById('timelineTime')
+        };
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadSidebar();
+            await initializeData();
+            initSortable();
+            handleDeepLink();
+        });
+
+        // --- Data Initialization & Dropdown Logic ---
+        async function initializeData() {
+            setLoading(true, "Loading curriculum data...");
+            try {
+                [allActivities, masterIndex, chaptersOverview] = await Promise.all([
+                    DataManager.loadAllActivities(),
+                    DataManager.loadMasterIndex(),
+                    DataManager.loadChaptersOverview()
+                ]);
+
+                // Populate Dropdowns for UI Filters
+                populateFilterDropdowns();
+
+                // Populate Book Dropdown for Matcher
+                const uniqueBooks = [...new Set(masterIndex.map(m => m['book name']).filter(Boolean))];
+                uniqueBooks.forEach(book => {
+                    DOM.bookSelect.add(new Option(book, book));
+                });
+                
+                DOM.bookSelect.disabled = false;
+                DOM.bookSelect.addEventListener('change', onBookSelect);
+                DOM.chapterSelect.addEventListener('change', onChapterSelect);
+                DOM.textSelect.addEventListener('change', onTextSelect);
+
+                // Run an initial presentation of activities
+                applyFiltersAndMatching();
+
+            } catch (err) {
+                console.error("Initialization error:", err);
+                DOM.emptyState.innerHTML = \<p class="text-red-500 font-bold">Error loading databases. Check console.</p>\;
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // --- Filtering Helper Methods ---
+        function normalizeCategory(cat) {
+            if (!cat) return '';
+            let trimmed = cat.trim();
+            return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+        }
+
+        function isBellRinger(timeStr) {
+            if (!timeStr) return false;
+            const lower = timeStr.toLowerCase();
+            if (lower.includes('hr') || lower.includes('hour') || lower.includes('long')) return false;
+            if (lower.includes('bell') || lower.includes('short')) return true;
+            const matches = timeStr.match(/\d+/g);
+            if (matches) {
+                const maxVal = Math.max(...matches.map(Number));
+                return maxVal <= 15;
+            }
+            return false;
+        }
+
+        function populateFilterDropdowns() {
+            const categories = new Set();
+            const dynamics = new Set();
+
+            allActivities.forEach(row => {
+                if (row.category) categories.add(normalizeCategory(row.category));
+                if (row.dynamic && row.dynamic.trim() !== '') dynamics.add(row.dynamic.trim());
+            });
+
+            const catSelect = document.getElementById('filterCategory');
+            catSelect.innerHTML = '<option value="">All Categories</option>';
+            Array.from(categories).sort().forEach(val => catSelect.add(new Option(val, val)));
+
+            const dynSelect = document.getElementById('filterDynamic');
+            dynSelect.innerHTML = '<option value="">Any Dynamic</option>';
+            Array.from(dynamics).sort().forEach(val => dynSelect.add(new Option(val, val)));
+
+            const levelContainer = document.getElementById('levelCheckboxes');
+            levelContainer.innerHTML = '';
+            
+            const hardcodedLevels = ['Beginner', 'Intermediate', 'Advanced'];
+            hardcodedLevels.forEach(l => {
+                levelContainer.innerHTML += \
+                    <label class="flex items-center space-x-1 cursor-pointer bg-white border border-gray-200 px-1.5 py-0.5 rounded hover:bg-gray-50 transition">
+                        <input type="checkbox" value="\" class="level-cb form-checkbox h-3 w-3 text-blue-600 rounded-sm" onchange="applyFiltersAndMatching()">
+                        <span class="text-[11px] font-medium text-gray-700">\</span>
+                    </label>
+                \;
+            });
+        }
+
+        function resetFilters() {
+            document.getElementById('searchBar').value = '';
+            document.getElementById('filterCategory').value = '';
+            document.getElementById('filterTime').value = '';
+            document.getElementById('filterDynamic').value = '';
+            document.getElementById('filterNoPrep').checked = false;
+            document.querySelectorAll('.level-cb').forEach(cb => cb.checked = false);
+            applyFiltersAndMatching();
+        }
+
+        // --- Context Selectors Mapping ---
+        async function onBookSelect() {
+            const selectedBook = DOM.bookSelect.value;
+            DOM.chapterSelect.innerHTML = '<option value="">-- Select Chapter --</option>';
+            DOM.textSelect.innerHTML = '<option value="">Select a chapter first</option>';
+            DOM.textSelect.disabled = true;
+            
+            if (!selectedBook) {
+                DOM.chapterSelect.disabled = true;
+                applyFiltersAndMatching();
+                return;
+            }
+
+            const bookChapters = chaptersOverview.filter(c => c.book === selectedBook);
+            bookChapters.forEach(ch => {
+                const label = \Ch \: \\;
+                DOM.chapterSelect.add(new Option(label, ch['chapter number']));
+            });
+            DOM.chapterSelect.disabled = false;
+
+            const bookIndexEntry = masterIndex.find(m => m['book name'] === selectedBook);
+            if (bookIndexEntry && bookIndexEntry.gid) {
+                currentBookTexts = await DataManager.loadBookTexts(bookIndexEntry.gid);
+            }
+            applyFiltersAndMatching();
+        }
+
+        function onChapterSelect() {
+            const selectedChapter = DOM.chapterSelect.value;
+            DOM.textSelect.innerHTML = '<option value="">-- View All Texts in Chapter --</option>';
+            
+            if (!selectedChapter) {
+                DOM.textSelect.disabled = true;
+                applyFiltersAndMatching();
+                return;
+            }
+
+            currentBookTexts.forEach(text => {
+                if(text['text title']) {
+                    const label = \p.\ - \\;
+                    DOM.textSelect.add(new Option(label, text['text title']));
+                }
+            });
+            
+            DOM.textSelect.disabled = false;
+            applyFiltersAndMatching();
+        }
+
+        function onTextSelect() {
+            applyFiltersAndMatching();
+        }
+
+        // --- Core Merged Filter & Match Engine ---
+        function applyFiltersAndMatching() {
+            setLoading(true, "Updating activities...");
+            
+            setTimeout(() => {
+                // 1. Resolve keywords from curriculum contexts if active
+                const selectedBook = DOM.bookSelect.value;
+                const chapterNum = DOM.chapterSelect.value;
+                const textTitle = DOM.textSelect.value;
+                
+                currentTargetKeywords = [];
+
+                if (selectedBook && chapterNum) {
+                    const chapterData = chaptersOverview.find(c => c.book === selectedBook && c['chapter number'] === chapterNum);
+                    if (chapterData) {
+                        extractKeywords(chapterData['broad theme']);
+                        extractKeywords(chapterData['grammar focus']);
+                    }
+                }
+
+                if (textTitle) {
+                    const textData = currentBookTexts.find(t => t['text title'] === textTitle);
+                    if (textData) {
+                        extractKeywords(textData['specific topic']);
+                        extractKeywords(textData['target skill']);
+                        extractKeywords(textData['sidebar vocabulary']);
+                    }
+                }
+
+                currentTargetKeywords = [...new Set(currentTargetKeywords)];
+
+                // 2. Fetch UI Manual Filters
+                const searchTxt = document.getElementById('searchBar').value.toLowerCase();
+                const catFilter = document.getElementById('filterCategory').value;
+                const timeFilter = document.getElementById('filterTime').value;
+                const dynFilter = document.getElementById('filterDynamic').value;
+                const noPrepFilter = document.getElementById('filterNoPrep').checked;
+                const checkedLevels = Array.from(document.querySelectorAll('.level-cb:checked')).map(cb => cb.value.toLowerCase());
+
+                // 3. Process Activity DB mapping
+                let filtered = allActivities.filter(row => {
+                    if (searchTxt) {
+                        const keywords = [row.name, row.category, row.keywords, row.source].join(' ').toLowerCase();
+                        if (!keywords.includes(searchTxt)) return false;
+                    }
+                    
+                    if (catFilter && normalizeCategory(row.category) !== catFilter) return false;
+
+                    const rowLevel = (row.level || '').trim().toLowerCase();
+                    if (checkedLevels.length > 0) {
+                        const isAdaptable = rowLevel === '' || rowLevel.includes('all') || rowLevel.includes('adaptable') || rowLevel.includes('any');
+                        
+                        if (!isAdaptable) {
+                            let matchesLevel = false;
+                            for (let cl of checkedLevels) {
+                                if (cl === 'beginner' && rowLevel.match(/beginner|a1|a2|elem/)) matchesLevel = true;
+                                else if (cl === 'intermediate' && rowLevel.match(/intermediate|b1|b2|pre-/)) matchesLevel = true;
+                                else if (cl === 'advanced' && rowLevel.match(/advanced|c1|c2|upper|flu/)) matchesLevel = true;
+                                else if (rowLevel.includes(cl)) matchesLevel = true;
+                            }
+                            if (!matchesLevel) return false;
+                        }
+                    }
+
+                    if (timeFilter) {
+                        const isShort = isBellRinger(row.time);
+                        if (timeFilter === 'bell-ringer' && !isShort) return false;
+                        if (timeFilter === 'long' && (isShort || !row.time)) return false;
+                    }
+                    if (dynFilter && row.dynamic !== dynFilter) return false;
+
+                    if (noPrepFilter) {
+                        const prep = (row.prep || '').toLowerCase().trim();
+                        const isNoPrep = prep === '' || prep === 'no' || prep === 'none' || prep === '0';
+                        if (!isNoPrep) return false;
+                    }
+
+                    return true;
+                });
+
+                // 4. Score Match Relevance over the filtered batch
+                const scoredActivities = filtered.map(activity => {
+                    const activityKeywords = (activity.keywords || '').split(',').map(k => k.trim().toLowerCase());
+                    const matches = activityKeywords.filter(k => currentTargetKeywords.includes(k) && k !== '');
+                    
+                    return {
+                        ...activity,
+                        matchScore: matches.length,
+                        matchReasons: matches
+                    };
+                });
+
+                // 5. Sort - Best contextual match gets priority, followed by internal user rating
+                const sortedMatches = scoredActivities.sort((a, b) => b.matchScore - a.matchScore || b.rating - a.rating);
+
+                renderResults(sortedMatches);
+                setLoading(false);
+            }, 100); 
+        }
+
+        function extractKeywords(stringData) {
+            if (!stringData) return;
+            const words = stringData.split(',').map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
+            currentTargetKeywords.push(...words);
+        }
+
+        // --- Rendering ---
+        function renderResults(activities) {
+            DOM.resultsGrid.innerHTML = '';
+            
+            if (activities.length === 0) {
+                DOM.resultsGrid.classList.add('hidden');
+                DOM.emptyState.classList.remove('hidden');
+                DOM.matchCount.textContent = '0 results';
+                return;
+            }
+
+            DOM.emptyState.classList.add('hidden');
+            DOM.resultsGrid.classList.remove('hidden');
+            DOM.matchCount.textContent = \\ activities\;
+
+            const fragment = document.createDocumentFragment();
+
+            activities.forEach(row => {
+                const card = document.createElement('div');
+                card.className = "bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex flex-col transition hover:shadow-md hover:border-blue-300 relative group";
+                
+                const reasonsHtml = (row.matchReasons && row.matchReasons.length > 0) ? row.matchReasons.slice(0, 3).map(r => 
+                    \<span class="bg-green-100 text-green-800 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border border-green-200">\</span>\
+                ).join(' ') : '';
+                
+                const extraMatch = (row.matchReasons && row.matchReasons.length > 3) ? \<span class="text-[10px] text-gray-400 font-medium">+\ more</span>\ : '';
+
+                card.innerHTML = \
+                    <div class="flex-1 mb-3 cursor-pointer" onclick="openModal('\')">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-[10px] font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-0.5 rounded inline-block truncate">\</span>
+                            <div class="flex flex-wrap gap-1 justify-end ml-2">\ \</div>
+                        </div>
+                        <h3 class="text-base font-bold leading-snug text-gray-900 group-hover:text-blue-700 transition-colors">\</h3>
+                        
+                        <div class="mt-2 flex flex-wrap gap-1.5 opacity-80">
+                            <span class="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200">⏱ \</span>
+                            <span class="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200">🎓 \</span>
+                            <span class="text-[10px] bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded border border-yellow-200">⭐ \</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-auto pt-3 border-t border-gray-100 flex justify-between items-center">
+                        <button onclick="openModal('\')" class="text-xs text-gray-500 hover:text-blue-600 font-medium transition flex items-center">
+                            Preview
+                        </button>
+                        <button onclick="addToTimeline('\')" class="text-[11px] font-bold uppercase tracking-wide bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded transition shadow-sm flex items-center">
+                            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                            Add to Lesson
+                        </button>
+                    </div>
+                \;
+                fragment.appendChild(card);
+            });
+
+            DOM.resultsGrid.appendChild(fragment);
+        }
+
+        // --- Timeline Logic (SortableJS) ---
+        function initSortable() {
+            new Sortable(DOM.timelineContainer, {
+                animation: 150,
+                ghostClass: 'ghost-card',
+                handle: '.drag-handle',
+                onEnd: function (evt) {
+                    const newOrderIds = Array.from(DOM.timelineContainer.children).map(el => el.dataset.id);
+                    timelineActivities = newOrderIds.map(id => timelineActivities.find(a => a._internalId === id));
+                    updateTimelineUI();
+                }
+            });
+        }
+
+        function addToTimeline(activityId) {
+            const activity = allActivities.find(a => a._internalId === activityId);
+            if (!activity) return;
+            
+            const timelineInstance = { ...activity, _instanceId: Date.now() + Math.random() };
+            timelineActivities.push(timelineInstance);
+            renderTimeline();
+        }
+
+        function removeFromTimeline(instanceId) {
+            timelineActivities = timelineActivities.filter(a => a._instanceId !== instanceId);
+            renderTimeline();
+        }
+
+        function renderTimeline() {
+            DOM.timelineContainer.innerHTML = '';
+            
+            if (timelineActivities.length === 0) {
+                DOM.timelineContainer.innerHTML = \
+                    <div class="h-full flex flex-col items-center justify-center text-gray-400 opacity-60">
+                        <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                        <p class="text-xs font-medium text-center">Your lesson timeline is empty.<br>Add activities from the left.</p>
+                    </div>\;
+            } else {
+                timelineActivities.forEach((act) => {
+                    const item = document.createElement('div');
+                    item.className = "bg-white border border-gray-200 rounded shadow-sm p-3 flex items-center group relative";
+                    item.dataset.id = act._internalId;
+                    
+                    item.innerHTML = \
+                        <div class="drag-handle text-gray-300 hover:text-gray-500 mr-2 pr-2 border-r border-gray-100 flex-shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path></svg>
+                        </div>
+                        <div class="flex-1 min-w-0 cursor-pointer" onclick="openModal('\')">
+                            <div class="text-[9px] font-bold text-blue-500 uppercase tracking-wider mb-0.5">\</div>
+                            <h4 class="text-sm font-bold text-gray-800 truncate">\</h4>
+                            <div class="text-[10px] text-gray-500 flex gap-2 mt-0.5">
+                                <span>⏱ \</span>
+                                <span class="truncate">💡 \</span>
+                            </div>
+                        </div>
+                        <button onclick="removeFromTimeline(\)" class="ml-2 text-gray-300 hover:text-red-500 focus:outline-none transition p-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    \;
+                    DOM.timelineContainer.appendChild(item);
+                });
+            }
+            updateTimelineUI();
+        }
+
+        function updateTimelineUI() {
+            DOM.timelineTime.textContent = \\ item\\;
+        }
+
+        function generateLessonLink() {
+            if (timelineActivities.length === 0) {
+                alert("Add some activities to the timeline first!");
+                return;
+            }
+            const ids = timelineActivities.map(a => a._internalId).join(',');
+            const url = \\\?lesson=\\;
+            
+            navigator.clipboard.writeText(url).then(() => {
+                const btn = document.getElementById('generateLinkBtn');
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = \<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Link Copied!\;
+                btn.classList.add('bg-green-600', 'hover:bg-green-700');
+                btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                }, 2500);
+            });
+        }
+
+        function handleDeepLink() {
+            const params = new URLSearchParams(window.location.search);
+            const lessonParam = params.get('lesson');
+            if (!lessonParam) return;
+
+            const checkData = setInterval(() => {
+                if (allActivities.length > 0) {
+                    clearInterval(checkData);
+                    const ids = lessonParam.split(',');
+                    ids.forEach(id => {
+                        const act = allActivities.find(a => a._internalId === id);
+                        if (act) {
+                            timelineActivities.push({ ...act, _instanceId: Date.now() + Math.random() });
+                        }
+                    });
+                    renderTimeline();
+                }
+            }, 100);
+        }
+
+        // --- Sidebar & UI Helpers ---
+        function setLoading(isLoading, text = "Loading...") {
+            if (isLoading) {
+                DOM.loadingState.classList.remove('hidden');
+                DOM.loadingState.classList.add('flex');
+                DOM.emptyState.classList.add('hidden');
+                DOM.resultsGrid.classList.add('hidden');
+                if (document.getElementById('loadingText')) document.getElementById('loadingText').textContent = text;
+            } else {
+                DOM.loadingState.classList.add('hidden');
+                DOM.loadingState.classList.remove('flex');
+            }
+        }
+
+        async function loadSidebar() {
+            try {
+                const response = await fetch('sidebar.html');
+                if (response.ok) {
+                    const html = await response.text();
+                    const placeholder = document.getElementById('sidebar-placeholder');
+                    placeholder.innerHTML = html;
+                    document.getElementById('mobileMenuBtn').classList.remove('hidden');
+                    placeholder.classList.remove('opacity-0');
+                    setupMobileSidebarToggles();
+                }
+            } catch (err) { console.warn("Sidebar missing"); }
+        }
+
+        function setupMobileSidebarToggles() {
+            const sidebar = document.getElementById('appSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if(!sidebar || !overlay) return;
+            const toggle = () => {
+                sidebar.classList.toggle('-translate-x-full');
+                overlay.classList.toggle('hidden');
+                if (!overlay.classList.contains('hidden')) setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+                else overlay.classList.add('opacity-0');
+            };
+            document.getElementById('mobileMenuBtn').addEventListener('click', toggle);
+            document.getElementById('closeSidebarBtn').addEventListener('click', toggle);
+            overlay.addEventListener('click', toggle);
+        }
+
+        // --- Shared Modal Logic ---
+        function openModal(activityId) {
+            const activity = allActivities.find(r => r._internalId === activityId);
+            if (!activity) return;
+
+            const modal = document.getElementById('activityModal');
+            const content = document.getElementById('modalContent');
+            content.innerHTML = ''; 
+
+            const embedUrl = (activity.embed_url || '').trim();
+
+            if (embedUrl) {
+                content.innerHTML = \<iframe src="\" class="w-full h-[85vh] border-0 rounded-xl bg-white shadow-2xl" allow="fullscreen"></iframe>\;
+            } else {
+                const instructions = (activity.instructions || 'No instructions provided.').trim();
+                const level = activity.level || 'Adaptable';
+                
+                content.innerHTML = \
+                    <div class="bg-white w-full max-w-3xl rounded-xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden relative">
+                        <div class="p-6 md:p-8 overflow-y-auto">
+                            <span class="text-xs font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-1 rounded mb-4 inline-block">\</span>
+                            <h2 class="text-2xl md:text-3xl font-extrabold text-gray-900 mb-4">\</h2>
+                            <div class="flex gap-2 mb-6 pb-4 border-b border-gray-100">
+                                <span class="bg-gray-100 px-2.5 py-1 rounded text-xs border">Lvl: \</span>
+                                <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded text-xs border border-blue-200">Time: \</span>
+                            </div>
+                            <div class="text-gray-800 text-lg leading-relaxed whitespace-pre-wrap font-medium">\</div>
+                        </div>
+                        <div class="bg-gray-50 border-t border-gray-100 p-4 flex justify-end">
+                            <button onclick="closeModal()" class="bg-blue-600 text-white px-6 py-1.5 rounded font-medium hover:bg-blue-700">Close</button>
+                        </div>
+                    </div>
+                \;
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('activityModal');
+            modal.classList.add('hidden');
+            setTimeout(() => { document.getElementById('modalContent').innerHTML = ''; }, 200);
+        }
+        
+        document.getElementById('activityModal').addEventListener('click', e => { if (e.target.id === 'activityModal') closeModal(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+    </script>
+</body>
+</html>

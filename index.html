@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom OS</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .modal-enter { animation: fadeIn 0.2s ease-out forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; backdrop-filter: blur(0px); }
+            to { opacity: 1; backdrop-filter: blur(4px); }
+        }
+
+        .ghost-card { opacity: 0.4; background: #f8fafc; border: 2px dashed #94a3b8; }
+        .drag-handle { cursor: grab; }
+        .drag-handle:active { cursor: grabbing; }
+
+        /* Custom marker hiding for details element */
+        details > summary::-webkit-details-marker { display: none; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased flex h-screen overflow-hidden">
+
+    <!-- Mobile Overlay -->
+    <div id="sidebarOverlay" class="fixed inset-0 bg-gray-900/50 z-30 hidden md:hidden transition-opacity opacity-0" onclick="toggleSidebar()"></div>
+
+    <!-- Integrated Sidebar -->
+    <aside id="appSidebar" class="w-48 bg-gray-900 text-gray-300 flex flex-col flex-shrink-0 h-full fixed top-0 left-0 z-40 shadow-xl transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
+        <div class="p-4 border-b border-gray-800 flex justify-between items-center relative">
+            <div class="bg-white rounded p-1 flex items-center justify-center w-full shadow-inner">
+                <img src="daniel_the_teacher_logo.png" alt="Daniel The Teacher" class="w-full h-auto object-contain">
+            </div>
+            <button class="md:hidden absolute top-2 right-2 text-gray-400 hover:text-white bg-gray-800 rounded-full p-1 shadow-md" onclick="toggleSidebar()">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        
+        <nav class="flex-1 overflow-y-auto py-3 px-2 space-y-6">
+            <div>
+                <h3 class="px-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">Workspace</h3>
+                <ul class="space-y-0.5 text-sm">
+                    <li>
+                        <button class="w-full flex items-center px-2 py-1.5 rounded-md transition font-medium bg-blue-600 text-white cursor-default">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                            Activity Hub
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Restored Tools Section -->
+            <div>
+                <h3 class="px-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">Tools</h3>
+                <ul class="space-y-0.5 text-sm">
+                    <li>
+                        <a href="dice.html" target="_blank" class="flex items-center px-2 py-1.5 rounded-md transition font-medium text-gray-300 hover:bg-gray-800 hover:text-white">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                            Dice
+                        </a>
+                    </li>
+                    <li>
+                        <a href="wheel.html" target="_blank" class="flex items-center px-2 py-1.5 rounded-md transition font-medium text-gray-300 hover:bg-gray-800 hover:text-white">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Spin Wheel
+                        </a>
+                    </li>
+                    <li>
+                        <a href="flashcards.html" target="_blank" class="flex items-center px-2 py-1.5 rounded-md transition font-medium text-gray-300 hover:bg-gray-800 hover:text-white">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                            Flashcards
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 w-full md:ml-48 h-full flex flex-col relative transition-all duration-300 bg-gray-50 overflow-hidden">
+        
+        <!-- Global Header & Unified Filters -->
+        <header class="bg-white border-b border-gray-200 sticky top-0 z-20 flex-shrink-0 shadow-sm flex flex-col">
+            
+            <!-- Top Row: Title & Action -->
+            <div class="px-6 py-4 flex items-center justify-between border-b border-gray-100 flex-wrap gap-4">
+                <div class="flex items-center gap-4 flex-1">
+                    <div class="flex items-center">
+                        <button class="md:hidden mr-3 text-gray-500 hover:text-gray-900" onclick="toggleSidebar()">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                        </button>
+                        <h1 class="text-xl font-bold text-gray-900 whitespace-nowrap">Activity Hub</h1>
+                    </div>
+                    
+                    <div class="relative flex-1 max-w-lg hidden sm:block">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        </div>
+                        <input type="text" id="filterSearch" list="searchSuggestions" placeholder="Search specific topics..." class="filter-input block w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all duration-300">
+                        <datalist id="searchSuggestions"></datalist>
+                    </div>
+                </div>
+                
+                <div>
+                    <button onclick="generateLessonLink()" id="generateLinkBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-md text-sm font-medium shadow-sm transition flex items-center">
+                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                        Copy Lesson Link
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Bottom Row: All Filters -->
+            <div class="px-6 py-3 flex flex-col gap-3 bg-gray-50/50">
+                
+                <!-- Curriculum Filters (The "Planner" part) -->
+                <div class="flex flex-wrap gap-3 items-end">
+                    <div class="flex flex-col w-full sm:w-auto flex-1 min-w-[150px] max-w-xs">
+                        <label class="text-[10px] uppercase font-bold text-blue-600 mb-1 tracking-wider">Target Curriculum</label>
+                        <select id="bookSelect" class="w-full border-blue-200 rounded text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm py-1.5 px-2 bg-blue-50 text-blue-900" disabled>
+                            <option value="">Select Textbook</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col w-full sm:w-auto flex-1 min-w-[150px] max-w-xs">
+                        <select id="chapterSelect" class="w-full border-blue-200 rounded text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm py-1.5 px-2 bg-blue-50 text-blue-900" disabled>
+                            <option value="">Select Book First</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col w-full sm:w-auto flex-1 min-w-[150px] max-w-xs">
+                        <select id="textSelect" class="w-full border-blue-200 rounded text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm py-1.5 px-2 bg-blue-50 text-blue-900" disabled>
+                            <option value="">Select Book First</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Attribute Filters (The "Hub" part) -->
+                  <div class="flex flex-col gap-2">
+                      <div class="flex flex-wrap items-center gap-1.5 bg-white p-1 rounded border border-gray-200 shadow-sm w-full sm:max-w-fit">
+                          <select id="filterCategory" class="filter-input border-transparent bg-gray-50 rounded text-[11px] focus:ring-blue-500 py-1 px-1.5 max-w-[120px] truncate hover:bg-gray-100 transition">
+                              <option value="">Categories</option>
+                          </select>
+
+                          <select id="filterTime" class="filter-input border-transparent bg-gray-50 rounded text-[11px] focus:ring-blue-500 py-1 px-1.5 hover:bg-gray-100 transition">
+                              <option value="">Any Time</option>
+                              <option value="bell-ringer">Bell-ringer (≤15m)</option>
+                              <option value="long">Long (>15m)</option>
+                          </select>
+
+                          <div class="hidden sm:block w-px h-5 bg-gray-200 mx-0.5"></div>
+
+                          <div class="flex items-center gap-1">
+                              <div id="filterLevels" class="flex flex-wrap gap-1"></div>
+                          </div>
+
+                          <div class="hidden sm:block w-px h-5 bg-gray-200 mx-0.5"></div>
+
+                          <label class="flex items-center space-x-1 px-1.5 py-0.5 rounded cursor-pointer hover:bg-gray-100 transition">
+                              <input type="checkbox" id="filterNoPrep" class="filter-input form-checkbox rounded-sm text-blue-600 w-3 h-3 focus:ring-blue-500">
+                              <span class="text-xs font-medium text-gray-600">No Prep</span>
+                          </label>
+
+                          <div class="hidden sm:block w-px h-5 bg-gray-200 mx-1"></div>
+
+                          <button type="button" onclick="document.getElementById('advancedFiltersPanel').classList.toggle('hidden')" class="inline-flex items-center text-[10px] uppercase font-bold text-gray-600 tracking-wider hover:text-blue-700 px-2 py-1 rounded transition bg-gray-50 hover:bg-gray-100 border border-gray-200 shadow-sm ml-auto">
+                              <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                              Advanced Filters
+                          </button>
+                      </div>
+
+                      <!-- Advanced Filters Panel -->
+                      <div id="advancedFiltersPanel" class="hidden flex flex-wrap gap-x-6 gap-y-4 p-4 bg-white border border-gray-200 rounded shadow-md mt-1 w-full max-w-4xl self-start">
+                          <!-- Source Filter -->
+                          <div class="flex flex-col min-w-[120px] flex-grow">
+                              <label class="text-[10px] uppercase font-bold text-gray-500 mb-2 tracking-wider flex justify-between items-center w-full"><span>Sources</span> <span class="normal-case font-normal text-[9px] text-gray-400 ml-1">(Multiple distinct)</span></label>
+                              <div id="filterSources" class="flex flex-wrap gap-2">
+                                  <!-- Options injected by JS -->
+                              </div>
+                          </div>
+
+                          <div class="flex flex-wrap gap-4 items-end">
+                              <!-- Dynamic -->
+                              <div class="flex flex-col w-[120px]">
+                                  <label class="text-[10px] uppercase font-bold text-gray-500 mb-1 tracking-wider">Dynamic</label>
+                                  <select id="filterDynamic" class="filter-input w-full border border-gray-300 bg-gray-50 rounded text-[11px] focus:ring-blue-500 py-1.5 px-2 hover:bg-gray-100 transition shadow-sm">
+                                      <option value="">Any Dynamic</option>
+                                  </select>
+                              </div>
+
+                              <!-- Competency Aims -->
+                              <div class="flex flex-col w-[200px]">
+                                  <label class="text-[10px] uppercase font-bold text-gray-500 mb-1 tracking-wider">Competency Aims</label>
+                                  <!-- Custom Dropdown for Competency Aims -->
+                                  <div class="relative inline-block text-left w-full" id="competencyDropdownContainer">
+                                      <button type="button" id="filterCompetencyBtn" onclick="toggleCompetencyDropdown()" class="inline-flex justify-between items-center w-full bg-gray-50 border border-gray-300 shadow-sm rounded text-[11px] focus:ring-2 focus:ring-blue-500 py-1.5 px-2 hover:bg-gray-100 transition text-gray-700">
+                                          <span id="filterCompetencyLabel" class="truncate">All Competency Aims</span>
+                                          <svg class="w-3 h-3 ml-1 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                      </button>
+
+                                      <div id="filterCompetencyPanel" class="origin-top-left absolute left-0 mt-1 w-72 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 hidden z-50 max-h-60 overflow-y-auto">
+                                          <div class="py-1" id="filterCompetencyList">
+                                              <button class="text-left w-full px-4 py-2 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium" onclick="selectCompetency('')">
+                                                  All Competency Aims
+                                              </button>
+                                              <!-- Options injected here -->
+                                          </div>
+                                      </div>
+                                  </div>
+                                  <input type="hidden" id="filterCompetency" value="" class="filter-input">
+                              </div>
+
+                              <!-- Games -->
+                              <div class="flex flex-col justify-end pb-0.5">
+                                  <label class="flex items-center space-x-1.5 px-3 py-1.5 rounded cursor-pointer hover:bg-purple-50 transition border border-gray-200 hover:border-purple-300 shadow-sm bg-gray-50 text-purple-700">
+                                      <input type="checkbox" id="filterGamesOnly" class="filter-input form-checkbox rounded-sm text-purple-600 w-3.5 h-3.5 focus:ring-purple-500 border-gray-300">
+                                      <span class="text-[11px] font-bold uppercase tracking-wide flex items-center"><svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Games Only</span>
+                                  </label>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+              </div>
+          </header>
+
+        <!-- Main Content Area: Split View -->
+        <div class="flex-1 relative overflow-hidden flex flex-col lg:flex-row">
+            
+            <!-- Global Loading State -->
+            <div id="globalLoading" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 z-30">
+                <svg class="animate-spin h-8 w-8 text-blue-600 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <p class="text-sm font-medium text-gray-500" id="loadingText">Loading Data Libraries...</p>
+            </div>
+            
+            <!-- Left Pane: Unified Activity Grid -->
+            <section class="flex-1 overflow-y-auto p-4 lg:p-6 transition-opacity duration-300 relative border-r border-gray-200">
+                <div class="mb-4 flex justify-between items-end">
+                    <h2 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Available Activities</h2>
+                    <span id="matchCount" class="text-xs text-gray-500 font-medium bg-gray-200 px-2 py-0.5 rounded-full">0</span>
+                </div>
+
+                <div id="emptyState" class="hidden flex-col items-center justify-center h-48 text-gray-500">
+                    <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <p class="text-sm font-medium">No activities match your filters.</p>
+                    <button onclick="resetFilters()" class="mt-2 text-xs text-blue-600 hover:underline">Clear all filters</button>
+                </div>
+
+                <div id="activityGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+            </section>
+
+            <!-- Right Pane: Lesson Timeline -->
+            <aside id="timelineAside" class="w-full lg:w-16 flex flex-col bg-white shadow-[0_-4px_15px_-3px_rgba(0,0,0,0.05)] lg:shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] z-10 flex-shrink-0 transition-all duration-300 ease-in-out lg:h-full h-12">
+                <div class="p-3 lg:p-4 border-b border-gray-100 bg-gray-900 text-white flex justify-between items-center shadow-md z-10 cursor-pointer lg:cursor-default" onclick="toggleTimelineMobile()">
+                    <h2 class="font-bold text-sm tracking-wide uppercase flex items-center lg:hidden">
+                        <svg class="w-4 h-4 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+                        Timeline
+                    </h2>
+                    <div class="flex items-center gap-3 w-full lg:justify-center lg:w-auto">
+                        <span id="timelineTime" class="text-xs bg-gray-800 px-2 py-1 rounded text-gray-300 font-medium lg:hidden">0 items</span>
+                        <button class="lg:hidden text-gray-400 hover:text-white" id="timelineToggleIcon">
+                            <svg class="w-5 h-5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+                        </button>
+                        <button class="hidden lg:block text-gray-400 hover:text-white" onclick="toggleTimelineDesktop(event)">
+                            <svg class="w-5 h-5 transition-transform duration-200 transform -rotate-90" id="desktopTimelineToggleIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+                        </button>
+                    </div>
+                </div>
+                <div id="timelineContentWrapper" class="flex-1 overflow-hidden lg:hidden hidden flex-col">
+                    <div id="timelineContainer" class="flex-1 overflow-y-auto p-4 space-y-2.5 bg-slate-50 relative"></div>
+                </div>
+            </aside>
+
+        </div>
+    </main>
+
+    <!-- Fullscreen Modal -->
+    <div id="activityModal" class="hidden fixed inset-0 bg-gray-900/95 z-50 modal-enter flex items-center justify-center p-4 sm:p-8">
+        
+        <!-- Modal Tools Corner -->
+        <div class="absolute top-4 left-6 flex space-x-3 z-50">
+            <a href="dice.html" target="_blank" class="flex items-center space-x-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-full text-white text-xs font-bold transition shadow-lg border border-gray-600">
+                <span>🎲</span> <span class="hidden sm:inline">Dice</span>
+            </a>
+            <a href="timer.html" target="_blank" class="flex items-center space-x-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-full text-white text-xs font-bold transition shadow-lg border border-gray-600">
+                <span>⏱️</span> <span class="hidden sm:inline">Timer</span>
+            </a>
+        </div>
+
+        <button onclick="closeModal()" class="absolute top-4 right-6 text-white text-4xl hover:text-gray-300 transition z-50 drop-shadow-md">&times;</button>
+        <div id="modalContent" class="w-full h-full relative flex items-center justify-center max-w-5xl mx-auto overflow-hidden"></div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // ==========================================
+        // DATA MANAGER (Unified Architecture)
+        // ==========================================
+        const DataManager = {
+            ACTIVITIES_SHEET_ID: '1LIzZKoPbOOqu2kGC9iasaw-RSEt_BYBrUGXJQAx9okw',
+            TEXTBOOK_SHEET_ID: '1j9-YBfiV3Ke8jss_glGIT7Ah7uD5E-9PlYiY1N-yPO4',
+            MASTER_INDEX_GID: '153689579',
+            CHAPTERS_OVERVIEW_GID: '0',
+            
+            // Replaced dummy GIDs. Add your actual GIDs here as you create new tabs.
+            ACTIVITY_TABS: [
+                { name: 'Warm-ups', gid: '0' },
+                { name: 'Games', gid: '624928426' }
+                // { name: 'Grammar', gid: 'YOUR_ACTUAL_GID_HERE' },
+                // { name: 'Vocabulary', gid: 'YOUR_ACTUAL_GID_HERE' },
+                // { name: 'Speaking', gid: 'YOUR_ACTUAL_GID_HERE' }
+            ],
+
+            async fetchCSV(sheetId, gid) {
+                const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                    const csvText = await response.text();
+                    
+                    return new Promise((resolve, reject) => {
+                        Papa.parse(csvText, {
+                            header: true,
+                            skipEmptyLines: true,
+                            complete: (results) => resolve(results.data),
+                            error: (error) => reject(error)
+                        });
+                    });
+                } catch (error) {
+                    console.error(`Fetch failed for sheet ${sheetId} (GID: ${gid}):`, error);
+                    return [];
+                }
+            },
+
+            normalizeRow(row) {
+                const normalized = {};
+                for (const [key, value] of Object.entries(row)) {
+                    normalized[key.trim().toLowerCase()] = value ? value.trim() : '';
+                }
+                return normalized;
+            },
+
+            async loadAllData() {
+                const fetchPromises = this.ACTIVITY_TABS.map(async (tab, index) => {
+                    const rawData = await this.fetchCSV(this.ACTIVITIES_SHEET_ID, tab.gid);
+                    return rawData.map((row, rowIndex) => {
+                        const norm = this.normalizeRow(row);
+                        const prepStr = (norm['prep'] || '').toLowerCase();
+                        const isNoPrep = prepStr === '' || prepStr === 'no' || prepStr === 'none' || prepStr === '0' || prepStr === 'false';
+                        
+                        return {
+                            _internalId: `${tab.name.replace(/\s+/g, '-')}-${rowIndex}`,
+                            id: norm['id'] || rowIndex.toString(),
+                            name: norm['name'] || norm['activity name'] || 'Unnamed Activity',
+                            category: norm['category'] || tab.name,
+                            level: norm['level'] || '',
+                            time: norm['time'] || '',
+                            prep: norm['prep'] || '',
+                            requiresPrep: !isNoPrep,
+                            dynamic: norm['dynamic'] || '',
+                            keywords: norm['keywords'] || '',
+                            chapter: norm['chapter'] || '',
+                            source: norm['source'] || '',
+                            embed_url: norm['embed_url'] || norm['embed url'] || norm['html'] || '',
+                            competencyAims: norm['competency aim'] || norm['competency aims'] || norm['kompetansemål'] || '',
+                            instructions: (norm['teacher notes'] || norm['teacher instructions'] || '').replace(/\bSs\b/g, 'students'),
+                            studentDesc: (norm['student description'] || norm['student instructions'] || norm['instructions'] || '').replace(/\bSs\b/g, 'students'),
+                            rating: parseInt(norm['rating']) || 0,
+                            reports: parseInt(norm['report problem'] || norm['report issue'] || norm['reports'] || norm['report']) || 0
+                        };
+                    }).filter(a => a.name !== 'Unnamed Activity');
+                });
+
+                const [activityArrays, rawMasterIndex, rawChapters] = await Promise.all([
+                    Promise.all(fetchPromises),
+                    this.fetchCSV(this.TEXTBOOK_SHEET_ID, this.MASTER_INDEX_GID),
+                    this.fetchCSV(this.TEXTBOOK_SHEET_ID, this.CHAPTERS_OVERVIEW_GID)
+                ]);
+
+                return {
+                    allActivities: activityArrays.flat(),
+                    masterIndex: rawMasterIndex.map(this.normalizeRow),
+                    chaptersOverview: rawChapters.map(this.normalizeRow)
+                };
+            },
+
+            async loadBookTexts(bookGid) {
+                const rawData = await this.fetchCSV(this.TEXTBOOK_SHEET_ID, bookGid);
+                return rawData.map(this.normalizeRow);
+            }
+        };
+
+        // ==========================================
+        // STATE & INITIALIZATION
+        // ==========================================
+        let appData = { activities: [], index: [], chapters: [] };
+        let timelineActivities = [];
+        let currentBookTexts = [];
+        let currentTargetKeywords = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            attachEventListeners();
+            initSortable();
+            await fetchAllData();
+            handleDeepLinks();
+        });
+
+        async function fetchAllData() {
+            try {
+                const data = await DataManager.loadAllData();
+                appData.activities = data.allActivities;
+                appData.index = data.masterIndex;
+                appData.chapters = data.chaptersOverview;
+                
+                populateFilterDropdowns();
+                populateCurriculumDropdowns();
+                
+                document.getElementById('globalLoading').classList.add('hidden');
+                applyFilters();
+            } catch (err) {
+                console.error("Critical failure:", err);
+                document.getElementById('loadingText').textContent = "Failed to load databases. Check console.";
+                document.getElementById('loadingText').classList.add('text-red-600');
+            }
+        }
+
+        // ==========================================
+        // GLOBAL FILTER & CURRICULUM LOGIC
+        // ==========================================
+        function toggleCompetencyDropdown() {
+            const panel = document.getElementById('filterCompetencyPanel');
+            panel.classList.toggle('hidden');
+        }
+
+        function selectCompetency(val) {
+            document.getElementById('filterCompetency').value = val;
+            document.getElementById('filterCompetencyLabel').textContent = val ? val : 'Competency Aims';
+            document.getElementById('filterCompetencyPanel').classList.add('hidden');
+            applyFilters();
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const container = document.getElementById('competencyDropdownContainer');
+            if (container && !container.contains(event.target)) {
+                document.getElementById('filterCompetencyPanel').classList.add('hidden');
+            }
+        });
+
+        function attachEventListeners() {
+            document.querySelectorAll('.filter-input').forEach(el => {
+                el.addEventListener('input', applyFilters);
+                el.addEventListener('change', applyFilters);
+            });
+            
+            document.getElementById('bookSelect').addEventListener('change', onBookSelect);
+            document.getElementById('chapterSelect').addEventListener('change', onChapterSelect);
+            document.getElementById('textSelect').addEventListener('change', applyFilters);
+        }
+
+        function populateFilterDropdowns() {
+            const categories = new Set();
+            const dynamics = new Set();
+            const compClusters = [];
+            const sources = new Set();
+            const searchKeywords = new Set();
+
+            appData.activities.forEach(row => {
+                if (row.keywords) {
+                    row.keywords.split(',').forEach(kw => {
+                        const trimmedKw = kw.trim();
+                        if (trimmedKw) {
+                            // Capitalize the first letter for aesthetics
+                            searchKeywords.add(trimmedKw.charAt(0).toUpperCase() + trimmedKw.slice(1).toLowerCase());
+                        }
+                    });
+                }
+                if (row.source) row.source.split(',').forEach(s => sources.add(s.trim().charAt(0).toUpperCase() + s.trim().slice(1).toLowerCase()));
+                if (row.category) row.category.split(',').forEach(c => categories.add(c.trim().charAt(0).toUpperCase() + c.trim().slice(1).toLowerCase()));
+                if (row.dynamic) dynamics.add(row.dynamic.trim());
+                
+                row.mergedCompetencies = [];
+                if (row.competencyAims) {
+                    // Treating the entire cell as a single competency aim to preserve natural commas.
+                    // Replacing any stray newlines with a space to prevent UI breakage.
+                    const rawAims = [row.competencyAims.replace(/\r?\n|\r/g, ' ')];
+                    rawAims.forEach(c => {
+                        const trimmed = c.trim();
+                        if (trimmed) {
+                            const norm = trimmed.toLowerCase().replace(/[^a-z0-9æøå]/gi, '');
+                            let foundCluster = null;
+                            for (let cl of compClusters) {
+                                if (norm === cl.norm || (norm.length > 20 && cl.norm.length > 20 && (norm.includes(cl.norm) || cl.norm.includes(norm)))) {
+                                    foundCluster = cl;
+                                    break;
+                                }
+                            }
+                            if (foundCluster) {
+                                // Prefer the string with correct punctuation but shorter overall length as display if they vary a lot, otherwise stick to standard
+                                if (trimmed.length < foundCluster.display.length) foundCluster.display = trimmed;
+                                if (!foundCluster.items.includes(trimmed)) foundCluster.items.push(trimmed);
+                            } else {
+                                foundCluster = { norm: norm, display: trimmed, items: [trimmed] };
+                                compClusters.push(foundCluster);
+                            }
+                            // Store the reference to the cluster, not the text itself
+                            row.mergedCompetencies.push(foundCluster);
+                        }
+                    });
+                }
+                // Unique clusters per row
+                row.mergedCompetencies = [...new Set(row.mergedCompetencies)];
+            });
+
+            const sourceContainer = document.getElementById('filterSources');
+            if (sourceContainer) {
+                Array.from(sources).sort().forEach(s => {
+                    if (s) {
+                        sourceContainer.innerHTML += `
+                            <label class="flex items-center space-x-1 cursor-pointer bg-gray-50 border border-gray-200 hover:border-gray-300 px-1.5 py-0.5 rounded shadow-sm transition">
+                                <input type="checkbox" value="${s}" class="filter-input source-filter-input form-checkbox h-3 w-3 text-blue-600 rounded-sm bg-white border-gray-300 focus:ring-blue-500">
+                                <span class="text-[10px] font-medium text-gray-700 whitespace-nowrap">${s}</span>
+                            </label>`;
+                    }
+                });
+                sourceContainer.querySelectorAll('input').forEach(cb => cb.addEventListener('change', applyFilters));
+            }
+
+            const catSelect = document.getElementById('filterCategory');
+            Array.from(categories).sort().forEach(val => catSelect.add(new Option(val, val)));
+
+            const dynSelect = document.getElementById('filterDynamic');
+            Array.from(dynamics).sort().forEach(val => dynSelect.add(new Option(val, val)));
+
+            const searchSuggestions = document.getElementById('searchSuggestions');
+            Array.from(searchKeywords).sort().forEach(val => {
+                const option = document.createElement('option');
+                option.value = val;
+                searchSuggestions.appendChild(option);
+            });
+
+            const compList = document.getElementById('filterCompetencyList');
+            compClusters.sort((a,b) => a.display.localeCompare(b.display)).forEach(cl => {
+                // Escape quotes for HTML injection
+                const safeDisplay = cl.display.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                const btnHtml = `<button class="text-left w-full px-4 py-2 text-[11px] text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-t border-gray-100 whitespace-normal leading-relaxed break-words" onclick="selectCompetency('${safeDisplay}')">${cl.display}</button>`;
+                compList.insertAdjacentHTML('beforeend', btnHtml);
+            });
+
+            const levelContainer = document.getElementById('filterLevels');
+            ['Beginner', 'Intermediate', 'Advanced'].forEach(l => {
+                levelContainer.innerHTML += `
+                    <label class="flex items-center space-x-1 cursor-pointer bg-gray-50 border border-transparent hover:border-gray-200 px-1.5 py-0.5 rounded transition">
+                        <input type="checkbox" value="${l}" class="filter-input form-checkbox h-3 w-3 text-blue-600 rounded-sm bg-white">
+                        <span class="text-[11px] font-medium text-gray-600">${l}</span>
+                    </label>
+                `;
+            });
+            
+            levelContainer.querySelectorAll('input').forEach(cb => cb.addEventListener('change', applyFilters));
+        }
+
+        function populateCurriculumDropdowns() {
+            const uniqueBooks = [...new Set(appData.index.map(m => m['book name']).filter(Boolean))];
+            const bookSelect = document.getElementById('bookSelect');
+            
+            uniqueBooks.forEach(book => bookSelect.add(new Option(book, book)));
+            bookSelect.disabled = false;
+        }
+
+        async function onBookSelect() {
+            const selectedBook = document.getElementById('bookSelect').value;
+            const chSelect = document.getElementById('chapterSelect');
+            const txtSelect = document.getElementById('textSelect');
+            
+            chSelect.innerHTML = '<option value="">-- All Chapters --</option>';
+            txtSelect.innerHTML = '<option value="">-- All Texts --</option>';
+            txtSelect.disabled = true;
+            
+            if (!selectedBook) {
+                chSelect.disabled = true;
+                currentBookTexts = [];
+                applyFilters();
+                return;
+            }
+
+            const bookChapters = appData.chapters.filter(c => c.book === selectedBook);
+            bookChapters.forEach(ch => chSelect.add(new Option(`Ch ${ch['chapter number']}: ${ch['chapter title']}`, ch['chapter number'])));
+            chSelect.disabled = false;
+
+            // Fetch specific texts for the book
+            const bookIndexEntry = appData.index.find(m => m['book name'] === selectedBook);
+            if (bookIndexEntry && bookIndexEntry.gid) {
+                currentBookTexts = await DataManager.loadBookTexts(bookIndexEntry.gid);
+            } else {
+                currentBookTexts = [];
+            }
+            onChapterSelect();
+        }
+
+        function onChapterSelect() {
+            const txtSelect = document.getElementById('textSelect');
+            const selectedChapter = document.getElementById('chapterSelect').value;
+            
+            txtSelect.innerHTML = '<option value="">-- All Texts --</option>';
+            
+            if (currentBookTexts.length === 0) {
+                txtSelect.disabled = true;
+            } else {
+                txtSelect.disabled = false;
+                
+                const textsByChapter = {};
+                currentBookTexts.forEach(text => {
+                    if (text['text title']) {
+                        const chap = text['chapter'] || 'Other';
+                        if (!textsByChapter[chap]) textsByChapter[chap] = [];
+                        textsByChapter[chap].push(text);
+                    }
+                });
+
+                if (selectedChapter) {
+                    const chapterTexts = textsByChapter[selectedChapter] || [];
+                    chapterTexts.forEach(text => {
+                        const prefix = text['page number'] ? `p.${text['page number']} - ` : '';
+                        txtSelect.add(new Option(`${prefix}${text['text title']}`, text['text title']));
+                    });
+                } else {
+                    const sortedChapters = Object.keys(textsByChapter).sort((a, b) => {
+                        const numA = parseInt(a);
+                        const numB = parseInt(b);
+                        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                        return a.localeCompare(b);
+                    });
+
+                    sortedChapters.forEach(chapter => {
+                        const optgroup = document.createElement('optgroup');
+                        const labelPrefix = chapter.toLowerCase().startsWith('chapter') || chapter === 'Other' ? '' : 'Chapter ';
+                        optgroup.label = labelPrefix + chapter;
+                        
+                        textsByChapter[chapter].forEach(text => {
+                            const prefix = text['page number'] ? `p.${text['page number']} - ` : '';
+                            optgroup.appendChild(new Option(`${prefix}${text['text title']}`, text['text title']));
+                        });
+                        
+                        txtSelect.appendChild(optgroup);
+                    });
+                }
+            }
+            applyFilters();
+        }
+
+        function isBellRinger(timeStr) {
+            if (!timeStr) return false;
+            const lower = timeStr.toLowerCase();
+            if (lower.includes('hr') || lower.includes('hour') || lower.includes('long')) return false;
+            if (lower.includes('bell') || lower.includes('short')) return true;
+            const matches = timeStr.match(/\d+/g);
+            return matches ? Math.max(...matches.map(Number)) <= 15 : false;
+        }
+
+        function extractKeywords(str) {
+            if (!str) return;
+            currentTargetKeywords.push(...str.split(',').map(w => w.trim().toLowerCase()).filter(w => w.length > 0));
+        }
+
+        function applyFilters() {
+            // 1. Gather Attribute Filters
+            const searchTxt = document.getElementById('filterSearch').value.toLowerCase();
+            const catFilter = document.getElementById('filterCategory').value.toLowerCase();
+            const timeFilter = document.getElementById('filterTime').value;
+            const checkedSources = Array.from(document.querySelectorAll('.source-filter-input:checked')).map(cb => cb.value.toLowerCase());
+              const dynFilter = document.getElementById('filterDynamic').value;
+            const compFilter = document.getElementById('filterCompetency').value;
+            const noPrepFilter = document.getElementById('filterNoPrep').checked;
+            const gamesOnlyFilter = document.getElementById('filterGamesOnly').checked;
+            const checkedLevels = Array.from(document.querySelectorAll('#filterLevels input:checked')).map(cb => cb.value.toLowerCase());
+
+            // 2. Gather Curriculum Filters & Build Target Keywords
+            currentTargetKeywords = [];
+            const selectedBook = document.getElementById('bookSelect').value;
+            const selectedChapter = document.getElementById('chapterSelect').value;
+            const selectedText = document.getElementById('textSelect').value;
+
+            if (selectedBook && selectedChapter) {
+                const chapterData = appData.chapters.find(c => c.book === selectedBook && String(c['chapter number']) === String(selectedChapter));
+                if (chapterData) {
+                    extractKeywords(chapterData['broad theme']);
+                    extractKeywords(chapterData['grammar focus']);
+                }
+            }
+            if (selectedText) {
+                const textData = currentBookTexts.find(t => t['text title'] === selectedText);
+                if (textData) {
+                    extractKeywords(textData['specific topic']);
+                    extractKeywords(textData['target skill']);
+                    extractKeywords(textData['sidebar vocabulary']);
+                }
+            }
+            currentTargetKeywords = [...new Set(currentTargetKeywords)];
+
+            // 3. Process, Score, and Filter Activities
+            let processedActivities = appData.activities.map(activity => {
+                const activityKeywords = (activity.keywords || '').split(',').map(k => k.trim().toLowerCase());
+                const matches = currentTargetKeywords.length > 0 ? activityKeywords.filter(k => currentTargetKeywords.includes(k) && k !== '') : [];
+                return { ...activity, matchScore: matches.length, matchReasons: matches };
+            });
+
+            processedActivities = processedActivities.filter(row => {
+                // Text Search
+                if (searchTxt) {
+                    const keywords = [row.name, row.category, row.keywords, row.chapter, row.source].join(' ').toLowerCase();
+                    if (!keywords.includes(searchTxt)) return false;
+                }
+                
+                // Dropdowns & Toggles
+                if (catFilter && !(row.category || '').toLowerCase().includes(catFilter)) return false;
+                if (checkedSources.length > 0) {
+                      const rowSource = (row.source || '').toLowerCase();
+                      const matchesSource = checkedSources.some(src => rowSource.includes(src));
+                      if (!matchesSource) return false;
+                  }
+                  if (dynFilter && row.dynamic !== dynFilter) return false;
+                if (compFilter && (!row.mergedCompetencies || !row.mergedCompetencies.some(cl => cl.display === compFilter))) return false;
+                if (noPrepFilter && row.requiresPrep) return false;
+                if (gamesOnlyFilter) {
+                    const isGame = (row.category || '').toLowerCase().includes('game') || (row._internalId || '').toLowerCase().startsWith('games');
+                    if (!isGame) return false;
+                }
+                if (timeFilter) {
+                    const isShort = isBellRinger(row.time);
+                    if (timeFilter === 'bell-ringer' && !isShort) return false;
+                    if (timeFilter === 'long' && (isShort || !row.time)) return false;
+                }
+
+                // Level Array
+                const rowLevel = (row.level || '').toLowerCase();
+                if (checkedLevels.length > 0) {
+                    const isAdaptable = rowLevel === '' || rowLevel.includes('all') || rowLevel.includes('adaptable') || rowLevel.includes('any');
+                    if (!isAdaptable) {
+                        let matchesLevel = false;
+                        for (let cl of checkedLevels) {
+                            if (cl === 'beginner' && rowLevel.match(/beginner|a1|a2|elem/)) matchesLevel = true;
+                            if (cl === 'intermediate' && rowLevel.match(/intermediate|b1|b2|pre-/)) matchesLevel = true;
+                            if (cl === 'advanced' && rowLevel.match(/advanced|c1|c2|upper/)) matchesLevel = true;
+                            if (rowLevel.includes(cl)) matchesLevel = true;
+                        }
+                        if (!matchesLevel) return false;
+                    }
+                }
+
+                return true;
+            });
+
+            // 4. Sort (Curriculum score first, then rating)
+            if (currentTargetKeywords.length > 0) {
+                processedActivities.sort((a, b) => b.matchScore - a.matchScore || b.rating - a.rating);
+            } else {
+                processedActivities.sort((a, b) => b.rating - a.rating);
+            }
+
+            renderGrid(processedActivities);
+        }
+
+        function resetFilters() {
+            document.querySelectorAll('.filter-input').forEach(el => {
+                if (el.type === 'checkbox') el.checked = false;
+                else el.value = '';
+            });
+            document.getElementById('bookSelect').value = '';
+            document.getElementById('chapterSelect').innerHTML = '<option value="">-- All Chapters --</option>';
+            document.getElementById('chapterSelect').disabled = true;
+            document.getElementById('textSelect').innerHTML = '<option value="">-- All Texts --</option>';
+            document.getElementById('textSelect').disabled = true;
+            currentBookTexts = [];
+            
+            document.getElementById('filterCompetencyLabel').textContent = 'Competency Aims';
+            
+            applyFilters();
+        }
+        
+        function toggleTimelineMobile() {
+            if (window.innerWidth >= 1024) return; // let desktop logic handle desktop
+            const wrapper = document.getElementById('timelineContentWrapper');
+            const icon = document.getElementById('timelineToggleIcon').firstElementChild;
+            const aside = document.getElementById('timelineAside');
+            
+            if (wrapper.classList.contains('hidden')) {
+                wrapper.classList.remove('hidden');
+                wrapper.classList.add('flex');
+                aside.classList.replace('h-12', 'h-1/3');
+                icon.classList.add('rotate-180');
+            } else {
+                wrapper.classList.add('hidden');
+                wrapper.classList.remove('flex');
+                aside.classList.replace('h-1/3', 'h-12');
+                icon.classList.remove('rotate-180');
+            }
+        }
+        
+        function toggleTimelineDesktop(event) {
+            if (event) event.stopPropagation();
+            const aside = document.getElementById('timelineAside');
+            const icon = document.getElementById('desktopTimelineToggleIcon');
+            
+            if (aside.classList.contains('lg:w-96')) {
+                // Collapse
+                aside.classList.remove('lg:w-96');
+                aside.classList.add('lg:w-16');
+                document.getElementById('timelineContentWrapper').classList.replace('lg:flex', 'lg:hidden');
+                icon.classList.replace('rotate-90', '-rotate-90');
+                
+                // Hide header text & badge
+                aside.querySelector('h2').classList.add('lg:hidden');
+                document.getElementById('timelineTime').classList.add('lg:hidden');
+            } else {
+                // Expand
+                aside.classList.add('lg:w-96');
+                aside.classList.remove('lg:w-16');
+                document.getElementById('timelineContentWrapper').classList.replace('lg:hidden', 'lg:flex');
+                icon.classList.replace('-rotate-90', 'rotate-90');
+                
+                // Show header text & badge
+                aside.querySelector('h2').classList.remove('lg:hidden');
+                document.getElementById('timelineTime').classList.remove('lg:hidden');
+            }
+        }
+
+        // ==========================================
+        // UI RENDERING (UNIFIED CARDS)
+        // ==========================================
+        function getLevelColor(levelStr) {
+            if (!levelStr) return 'bg-gray-100 text-gray-700 border-gray-200';
+            const lower = levelStr.toLowerCase();
+            if (lower.match(/beginner|a1|a2|elem/)) return 'bg-green-50 text-green-700 border-green-200';
+            if (lower.match(/intermediate|b1|b2|pre-/)) return 'bg-orange-50 text-orange-700 border-orange-200';
+            if (lower.match(/advanced|c1|c2|upper/)) return 'bg-red-50 text-red-700 border-red-200';
+            return 'bg-gray-100 text-gray-700 border-gray-200';
+        }
+
+        function renderGrid(activities) {
+            const grid = document.getElementById('activityGrid');
+            const empty = document.getElementById('emptyState');
+            grid.innerHTML = '';
+            document.getElementById('matchCount').textContent = activities.length;
+
+            if (activities.length === 0) {
+                grid.classList.add('hidden');
+                empty.classList.replace('hidden', 'flex');
+                return;
+            }
+
+            grid.classList.remove('hidden');
+            empty.classList.replace('flex', 'hidden');
+
+            const fragment = document.createDocumentFragment();
+            activities.forEach(row => {
+                const isGameTile = row.category.toLowerCase().includes('game') || row._internalId.toLowerCase().startsWith('games');
+
+                const card = document.createElement('div');
+                card.id = `card-${row._internalId}`;
+                card.dataset.isGame = isGameTile.toString();
+
+                let bgClass = 'bg-white';
+                let borderClass = isGameTile ? 'border-purple-200' : 'border-gray-200';
+                let hoverBorderClass = isGameTile ? 'hover:border-purple-400' : 'hover:border-blue-400';
+
+                if (row.reports >= 1) {
+                    bgClass = 'bg-red-50';
+                    borderClass = 'border-red-300';
+                    hoverBorderClass = 'hover:border-red-400';
+                }
+
+                card.className = `${bgClass} border ${borderClass} rounded-lg shadow-sm p-4 flex flex-col transition hover:shadow-md ${hoverBorderClass} group relative`;
+                let reportBtnClass = row.reports >= 1 ? 'bg-red-100 text-red-700' : 'hover:bg-red-50 text-gray-400 hover:text-red-500';
+                let reportActiveAttr = row.reports >= 1 ? 'data-active="true"' : 'data-active="false"';
+
+                const level = (!row.level || row.level === '') ? 'All / Adaptable' : row.level;
+
+                // Show curriculum match reasons if any exist
+                let matchPills = '';
+                if (row.matchScore > 0) {
+                    const topReasons = row.matchReasons.slice(0, 3).map(r => `<span class="bg-green-100 text-green-800 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border border-green-200">${r}</span>`).join(' ');
+                    const extra = row.matchScore > 3 ? `<span class="text-[9px] text-gray-400 font-medium">+${row.matchScore - 3}</span>` : '';
+                    matchPills = `<div class="flex flex-wrap gap-1 mt-2">${topReasons} ${extra}</div>`;
+                }
+
+                const catStyles = isGameTile ? 'text-purple-600 bg-purple-50 border-purple-100' : 'text-blue-600 bg-blue-50 border-blue-100';
+
+                card.innerHTML = `
+                    <div class="flex-1 cursor-pointer" onclick="openModal('${row._internalId}')">
+                        <div class="mb-2">
+                            <span class="text-[10px] font-bold ${catStyles} uppercase tracking-wider px-2 py-0.5 rounded truncate border">${row.category}</span>
+                        </div>
+                        <div class="flex justify-between items-start gap-4">
+                            <h3 class="text-base font-bold leading-snug text-gray-900 group-hover:text-blue-700 transition-colors flex-1">${row.name}</h3>
+                            <div class="flex items-center bg-gray-50 border border-gray-200 rounded-full text-xs shadow-sm divide-x divide-gray-200 flex-shrink-0 overflow-hidden">
+                                <button id="report-${row._internalId}" onclick="event.stopPropagation(); toggleAction('report', '${row.id}', '${row._internalId}', ${isGameTile})" ${reportActiveAttr} class="group/report relative flex items-center justify-center p-1.5 transition focus:outline-none ${reportBtnClass}">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1.5 hidden group-hover/report:block w-max bg-gray-900 text-white text-[10px] font-bold py-1 px-2 rounded shadow-lg z-10 pointer-events-none">Report Issue
+                                        <svg class="absolute text-gray-900 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255" xml:space="preserve"><polygon fill="currentColor" points="0,0 127.5,127.5 255,0"/></svg>
+                                    </div>
+                                </button>
+                                <button id="upvote-${row._internalId}" onclick="event.stopPropagation(); toggleAction('rating', '${row.id}', '${row._internalId}', ${isGameTile})" class="group/rate relative flex items-center justify-center space-x-1 px-2 py-1.5 hover:bg-yellow-50 text-yellow-500 hover:text-yellow-600 transition focus:outline-none">
+                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                                    <span class="upvote-count font-bold">${row.rating || 0}</span>
+                                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1.5 hidden group-hover/rate:block w-max bg-gray-900 text-white text-[10px] font-bold py-1 px-2 rounded shadow-lg z-10 pointer-events-none">Upvote
+                                        <svg class="absolute text-gray-900 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255" xml:space="preserve"><polygon fill="currentColor" points="0,0 127.5,127.5 255,0"/></svg>
+                                    </div>
+                                </button>
+                                <button onclick="event.stopPropagation(); addToTimeline('${row._internalId}')" class="text-[10px] font-bold uppercase tracking-wide text-gray-700 hover:bg-blue-600 hover:text-white px-2 py-1.5 transition flex items-center justify-center focus:outline-none">
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg> Add
+                                </button>
+                            </div>
+                        </div>
+                        ${matchPills}
+
+                        <div class="mt-3 flex flex-wrap gap-1.5 opacity-90">
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${getLevelColor(level)}">${level}</span>
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border bg-gray-50 text-gray-700">⏱ ${row.time || 'Var'}</span>
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border bg-gray-50 text-gray-700">💡 ${row.dynamic || 'Any'}</span>
+                        </div>
+
+                        <div class="mt-3 pt-3 border-t border-gray-100 text-[10px] text-gray-500 line-clamp-3 leading-relaxed" title="Click to view full instructions">
+                            ${row.studentDesc || row.instructions || 'No instructions provided.'}
+                        </div>
+
+                        ${row.mergedCompetencies && row.mergedCompetencies.length > 0 ? `
+                        <div class="mt-2 text-[9px] text-indigo-400/80 font-medium italic truncate" title="${row.mergedCompetencies.map(c => c.display).join(', ')}">
+                            Aim: ${row.mergedCompetencies.map(c => c.display).join(' • ')}
+                        </div>` : ''}
+                    </div>
+                `;
+                fragment.appendChild(card);
+            });
+            grid.appendChild(fragment);
+        }
+
+        // ==========================================
+        // TIMELINE LOGIC
+        // ==========================================
+        function initSortable() {
+            new Sortable(document.getElementById('timelineContainer'), {
+                animation: 150,
+                ghostClass: 'ghost-card',
+                handle: '.drag-handle',
+                onEnd: () => {
+                    const newIds = Array.from(document.getElementById('timelineContainer').children).map(el => el.dataset.instanceId);
+                    timelineActivities = newIds.map(id => timelineActivities.find(a => String(a._instanceId) === id));
+                }
+            });
+        }
+
+        function addToTimeline(activityId) {
+            const activity = appData.activities.find(a => a._internalId === activityId);
+            if (!activity) return;
+            timelineActivities.push({ ...activity, _instanceId: Date.now() });
+            renderTimeline();
+            
+            // Subtle visual feedback
+            const btn = event.currentTarget;
+            const orig = btn.innerHTML;
+            btn.innerHTML = `<svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Added`;
+            btn.classList.add('bg-green-600', 'text-white', 'border-green-600');
+            setTimeout(() => {
+                btn.innerHTML = orig;
+                btn.classList.remove('bg-green-600', 'text-white', 'border-green-600');
+            }, 1000);
+        }
+
+        function removeFromTimeline(instanceId) {
+            timelineActivities = timelineActivities.filter(a => String(a._instanceId) !== String(instanceId));
+            renderTimeline();
+        }
+
+        function renderTimeline() {
+            const container = document.getElementById('timelineContainer');
+            container.innerHTML = '';
+            
+            if (timelineActivities.length === 0) {
+                container.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-gray-400 opacity-60 absolute inset-0">
+                        <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                        <p class="text-[11px] font-medium text-center">Your lesson is empty.<br>Click 'Add' on an activity.</p>
+                    </div>`;
+            } else {
+                timelineActivities.forEach((act, idx) => {
+                    const item = document.createElement('div');
+                    item.className = "bg-white border border-gray-200 rounded shadow-sm p-2 flex items-center group";
+                    item.dataset.instanceId = act._instanceId;
+                    
+                    item.innerHTML = `
+                        <div class="drag-handle text-gray-300 hover:text-gray-500 mr-2 pr-2 border-r border-gray-100 flex-shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path></svg>
+                        </div>
+                        <div class="flex-1 min-w-0 cursor-pointer" onclick="openModal('${act._internalId}')">
+                            <h4 class="text-xs font-bold text-gray-800 truncate">${idx+1}. ${act.name}</h4>
+                            <div class="text-[9px] text-gray-500 mt-0.5">⏱ ${act.time || '-'} | 💡 ${act.dynamic || '-'}</div>
+                        </div>
+                        <button onclick="removeFromTimeline('${act._instanceId}')" class="ml-2 text-gray-300 hover:text-red-500 p-1 transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                    `;
+                    container.appendChild(item);
+                });
+            }
+            document.getElementById('timelineTime').textContent = `${timelineActivities.length} items`;
+        }
+
+        // ==========================================
+        // MODAL & UTILS
+        // ==========================================
+        function openModal(activityId) {
+            const act = appData.activities.find(r => r._internalId === activityId);
+            if (!act) return;
+
+            const url = new URL(window.location);
+            url.searchParams.set('activity', activityId);
+            window.history.pushState({}, '', url);
+
+            const modal = document.getElementById('activityModal');
+            const content = document.getElementById('modalContent');
+            
+            const isGame = act.category.toLowerCase().includes('game') || act._internalId.toLowerCase().startsWith('games');
+            // Allow games to be resolved via the new embed_url (html column) or legacy instructions column
+            const gameHtmlFile = act.embed_url || 
+                (act.studentDesc && act.studentDesc.toLowerCase().endsWith('.html') ? act.studentDesc.trim() : null) || 
+                (act.instructions && act.instructions.toLowerCase().endsWith('.html') ? act.instructions.trim() : null);
+            const targetUrl = gameHtmlFile && isGame ? `./games/${gameHtmlFile.startsWith('./') ? gameHtmlFile.substring(2) : gameHtmlFile.replace(/^games\//, '')}` : (act.embed_url && act.embed_url.startsWith('http') ? act.embed_url : null);
+
+            if (targetUrl) {
+                content.innerHTML = `<iframe src="${targetUrl}" class="w-full h-[85vh] border-0 rounded-xl bg-white shadow-2xl" allow="fullscreen"></iframe>`;
+            } else {
+                window.currentModalActivity = act; // store for toggling
+                
+                content.innerHTML = `
+                    <div class="bg-white w-full max-w-3xl rounded-xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden relative">
+                        <!-- Mode Toggle Header -->
+                        <div class="bg-gray-100 border-b border-gray-200 p-3 flex justify-center sticky top-0 z-10 shrink-0">
+                            <div class="inline-flex bg-gray-200 rounded-lg p-1">
+                                <button onclick="toggleModalMode('student')" id="modalModeStudent" class="px-4 py-1.5 text-sm font-medium rounded-md bg-white shadow-sm text-gray-900 transition-all">Student View</button>
+                                <button onclick="toggleModalMode('teacher')" id="modalModeTeacher" class="px-4 py-1.5 text-sm font-medium rounded-md text-gray-500 hover:text-gray-900 transition-all">Teacher Notes</button>
+                            </div>
+                        </div>
+                        
+                        <div class="p-6 md:p-8 overflow-y-auto flex-1 h-[60vh]">
+                            <span class="text-xs font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-1 rounded mb-4 inline-block">${act.category}</span>
+                            <h2 class="text-3xl font-extrabold text-gray-900 mb-4">${act.name}</h2>
+                            <div class="flex gap-2 mb-6 pb-4 border-b border-gray-100">
+                                <span class="bg-gray-100 px-2.5 py-1 rounded text-xs border border-gray-200">Lvl: ${act.level || 'Adaptable'}</span>
+                                <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded text-xs border border-blue-200">Time: ${act.time || 'Var'}</span>
+                                ${act.requiresPrep ? `<span class="bg-red-50 text-red-700 px-2.5 py-1 rounded text-xs border border-red-200">Prep Required</span>` : ''}
+                            </div>
+                            <!-- Dynamic Content Area -->
+                            <div id="modalInstructionsContent" class="text-gray-800 text-lg leading-relaxed whitespace-pre-wrap font-medium">${act.studentDesc || 'No student instructions provided.'}</div>
+                        </div>
+                        
+                        <div class="bg-gray-50 border-t border-gray-100 p-4 flex justify-between items-center shrink-0">
+                            <button onclick="handleShare(event, '${act._internalId}', true)" id="share-modal" class="text-sm flex items-center space-x-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 py-1.5 px-4 rounded transition font-medium">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                                <span>Copy Link</span>
+                            </button>
+                            <button onclick="closeModal()" class="text-sm bg-blue-600 hover:bg-blue-700 text-white py-1.5 px-6 rounded transition font-medium">Close</button>
+                        </div>
+                    </div>
+                `;
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function toggleModalMode(mode) {
+            const act = window.currentModalActivity;
+            if (!act) return;
+
+            const contentEl = document.getElementById('modalInstructionsContent');
+            const studentBtn = document.getElementById('modalModeStudent');
+            const teacherBtn = document.getElementById('modalModeTeacher');
+
+            if (mode === 'student') {
+                studentBtn.classList.add('bg-white', 'shadow-sm', 'text-gray-900');
+                studentBtn.classList.remove('text-gray-500', 'hover:text-gray-900');
+
+                teacherBtn.classList.remove('bg-white', 'shadow-sm', 'text-gray-900');
+                teacherBtn.classList.add('text-gray-500', 'hover:text-gray-900');
+
+                contentEl.innerHTML = act.studentDesc || 'No student instructions provided.';
+            } else {
+                teacherBtn.classList.add('bg-white', 'shadow-sm', 'text-gray-900');
+                teacherBtn.classList.remove('text-gray-500', 'hover:text-gray-900');
+                
+                studentBtn.classList.remove('bg-white', 'shadow-sm', 'text-gray-900');
+                studentBtn.classList.add('text-gray-500', 'hover:text-gray-900');
+                
+                contentEl.innerHTML = act.instructions || 'No teacher notes provided.';
+            }
+        }
+
+        function closeModal() {
+            const url = new URL(window.location);
+            url.searchParams.delete('activity');
+            window.history.pushState({}, '', url);
+
+            const modal = document.getElementById('activityModal');
+            modal.classList.add('hidden');
+            setTimeout(() => document.getElementById('modalContent').innerHTML = '', 200);
+        }
+
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw6d7DbS_p-yqW5YJuhdEU3_dU-L6w8e-HOKupQGbDIQwcsCXM4LtLzzUjsFxKAr43D/exec';
+
+        const pendingActions = {};
+
+        function toggleAction(action, rowId, internalId, isGameTile) {
+            const btnId = action === 'rating' ? `upvote-${internalId}` : `report-${internalId}`;
+            const btn = document.getElementById(btnId);
+            const card = document.getElementById(`card-${internalId}`);
+            if (!btn || !card) return;
+
+            const isActive = btn.dataset.active === 'true';
+            const actionKey = `${action}-${internalId}`;
+            const sheetName = isGameTile ? 'Games' : 'Activities';
+
+            if (isActive) {
+                // Revert
+                btn.dataset.active = 'false';
+                if (action === 'rating') {
+                    btn.classList.remove('bg-yellow-100', 'text-yellow-700');
+                    btn.classList.add('hover:bg-yellow-50', 'text-yellow-500', 'hover:text-yellow-600');
+                    const countSpan = btn.querySelector('.upvote-count');
+                    if (countSpan) countSpan.innerText = parseInt(countSpan.innerText || 1) - 1;
+                } else {
+                    btn.classList.remove('bg-red-100', 'text-red-700');
+                    btn.classList.add('hover:bg-red-50', 'text-gray-400', 'hover:text-red-500');
+                    // Revert card color
+                    card.classList.remove('bg-red-50', 'border-red-300', 'hover:border-red-400');
+                    card.classList.add('bg-white', isGameTile ? 'border-purple-200' : 'border-gray-200', isGameTile ? 'hover:border-purple-400' : 'hover:border-blue-400');
+                }
+
+                if (pendingActions[actionKey]) {
+                    clearTimeout(pendingActions[actionKey]);
+                    delete pendingActions[actionKey];
+                }
+            } else {
+                // Apply
+                btn.dataset.active = 'true';
+                if (action === 'rating') {
+                    btn.classList.remove('hover:bg-yellow-50', 'text-yellow-500', 'hover:text-yellow-600');
+                    btn.classList.add('bg-yellow-100', 'text-yellow-700');
+                    const countSpan = btn.querySelector('.upvote-count');
+                    if (countSpan) countSpan.innerText = parseInt(countSpan.innerText || 0) + 1;
+                } else {
+                    btn.classList.remove('hover:bg-red-50', 'text-gray-400', 'hover:text-red-500');
+                    btn.classList.add('bg-red-100', 'text-red-700');
+                    
+                    // Apply light red to card
+                    card.classList.remove('bg-white', 'border-purple-200', 'hover:border-purple-400', 'border-gray-200', 'hover:border-blue-400');
+                    card.classList.add('bg-red-50', 'border-red-300', 'hover:border-red-400');
+                }
+
+                pendingActions[actionKey] = setTimeout(() => {
+                    fetch(APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({ id: rowId, sheetName: sheetName, action: action })
+                    }).catch(console.error);
+                    delete pendingActions[actionKey];
+                }, 3000);
+            }
+        }
+
+        function handleDeepLinks() {
+            const params = new URLSearchParams(window.location.search);
+            const actId = params.get('activity');
+            if (actId) setTimeout(() => openModal(actId), 500);
+
+            const lessonIds = params.get('lesson');
+            if (lessonIds) {
+                const checkData = setInterval(() => {
+                    if (appData.activities.length > 0) {
+                        clearInterval(checkData);
+                        lessonIds.split(',').forEach(id => {
+                            const match = appData.activities.find(a => a._internalId === id);
+                            if (match) timelineActivities.push({ ...match, _instanceId: Date.now() + Math.random() });
+                        });
+                        renderTimeline();
+                    }
+                }, 100);
+            }
+        }
+
+        function toggleSidebar() {
+            document.getElementById('appSidebar').classList.toggle('-translate-x-full');
+            const overlay = document.getElementById('sidebarOverlay');
+            overlay.classList.toggle('hidden');
+            if (!overlay.classList.contains('hidden')) setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+            else overlay.classList.add('opacity-0');
+        }
+
+        function generateLessonLink() {
+            if (timelineActivities.length === 0) return alert("Add items to timeline first!");
+            const url = `${window.location.origin}${window.location.pathname}?lesson=${encodeURIComponent(timelineActivities.map(a => a._internalId).join(','))}`;
+            navigator.clipboard.writeText(url).then(() => {
+                const btn = document.getElementById('generateLinkBtn');
+                btn.innerHTML = `<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!`;
+                btn.classList.add('bg-green-600'); btn.classList.remove('bg-blue-600');
+                setTimeout(() => {
+                    btn.innerHTML = `<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg> Copy Lesson Link`;
+                    btn.classList.remove('bg-green-600'); btn.classList.add('bg-blue-600');
+                }, 2000);
+            });
+        }
+
+        function handleShare(e, id, isModal = false) {
+            if(e) e.stopPropagation();
+            const url = `${window.location.origin}${window.location.pathname}?activity=${id}`;
+            navigator.clipboard.writeText(url).then(() => {
+                const btn = document.getElementById(isModal ? 'share-modal' : `share-${id}`);
+                if(!btn) return;
+                const orig = btn.innerHTML;
+                btn.innerHTML = "Copied!";
+                btn.classList.add('text-green-600');
+                setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-green-600'); }, 2000);
+            });
+        }
+
+        // Close Modals
+        document.getElementById('activityModal').addEventListener('click', e => { if (e.target.id === 'activityModal') closeModal(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+    </script>
+</body>
+</html>
+

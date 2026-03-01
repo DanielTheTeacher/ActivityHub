@@ -1,0 +1,1575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flash Cards – Vocabulary Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        * { -webkit-tap-highlight-color: transparent; user-select: none; }
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        .pop-in { animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .shake { animation: shake 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+        @keyframes celebrate { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes slideOutLeft { to { opacity: 0; transform: translateX(-60px); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @keyframes confetti { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(-80px) rotate(360deg); opacity: 0; } }
+
+        .slide-in { animation: slideInRight 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .slide-out { animation: slideOutLeft 0.2s ease-in forwards; }
+        .pulse-glow { animation: pulseGlow 2s ease-in-out infinite; }
+        @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.3); } 50% { box-shadow: 0 0 20px 4px rgba(99, 102, 241, 0.15); } }
+
+        /* Card flip */
+        .card-flip { perspective: 800px; }
+        .card-flip-inner { transition: transform 0.5s cubic-bezier(0.4, 0.0, 0.2, 1); transform-style: preserve-3d; }
+        .card-flip-inner.flipped { transform: rotateY(180deg); }
+        .card-front, .card-back { backface-visibility: hidden; }
+        .card-back { transform: rotateY(180deg); }
+
+        /* Progress ring */
+        .progress-ring { transform: rotate(-90deg); }
+        .progress-ring circle { transition: stroke-dashoffset 0.4s ease; }
+
+        /* Streak fire */
+        .streak-fire { animation: pulse 0.8s ease-in-out infinite; }
+
+        /* Confetti particle */
+        .confetti-particle { animation: confetti 1s ease-out forwards; }
+
+        /* Multiple choice buttons */
+        .mc-btn { transition: all 0.2s; }
+        .mc-btn:hover { transform: translateY(-2px); }
+        .mc-btn.correct { background: rgba(34, 197, 94, 0.3) !important; border-color: #22c55e !important; color: #4ade80 !important; }
+        .mc-btn.wrong { background: rgba(239, 68, 68, 0.3) !important; border-color: #ef4444 !important; color: #f87171 !important; }
+
+        /* Type input */
+        .type-input:focus { outline: none; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.5); }
+
+        /* Timer bar */
+        .timer-bar { transition: width 0.1s linear; }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans antialiased min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- ======================== SCREEN: SETUP ======================== -->
+    <div id="screen-setup" class="w-full max-w-md space-y-6 fade-in">
+        <!-- Header -->
+        <div class="text-center space-y-1">
+            <h1 class="text-4xl font-black tracking-tight">
+                <span class="text-amber-400">FLASH</span><span class="text-indigo-400"> CARDS</span>
+            </h1>
+            <p class="text-gray-500 text-sm">Learn vocabulary with fun modes</p>
+        </div>
+
+        <!-- Vocabulary Source -->
+        <div class="bg-gray-900 rounded-2xl p-5 space-y-4 border border-gray-800">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Vocabulary Source</h2>
+
+            <!-- Source Toggle -->
+            <div class="flex rounded-xl bg-gray-800 p-1">
+                <button id="btn-source-sheets" onclick="setSource('sheets')" class="flex-1 py-2 text-sm font-semibold rounded-lg transition-all bg-indigo-600 text-white">
+                    Google Sheets
+                </button>
+                <button id="btn-source-custom" onclick="setSource('custom')" class="flex-1 py-2 text-sm font-semibold rounded-lg transition-all text-gray-400 hover:text-white">
+                    Custom Words
+                </button>
+            </div>
+
+            <!-- Sheets Source -->
+            <div id="source-sheets" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Set Collection</label>
+                    <select id="select-collection" onchange="onCollectionChange()" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                        <option value="">Loading collections...</option>
+                    </select>
+                </div>
+
+                <div id="vocab-set-container" class="hidden">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Vocabulary Set</label>
+                    <select id="select-vocab-set" onchange="onVocabSetChange()" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                        <option value="">Select a set...</option>
+                    </select>
+                </div>
+
+                <div id="sheets-loading" class="hidden text-center py-2">
+                    <div class="inline-block w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span class="text-xs text-gray-500 ml-2">Loading...</span>
+                </div>
+
+                <div id="word-count-badge" class="hidden">
+                    <span class="inline-flex items-center gap-1.5 bg-indigo-900/40 text-indigo-300 text-xs font-medium px-3 py-1 rounded-full border border-indigo-800/50">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
+                        <span id="word-count-text">0 words loaded</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Custom Source -->
+            <div id="source-custom" class="hidden space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Enter words (comma-separated)</label>
+                    <textarea id="custom-words" rows="4" placeholder="apple, banana, cherry, dog, elephant, forest..."
+                        class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none"
+                        oninput="onCustomWordsChange()"></textarea>
+                </div>
+                <div id="custom-word-count" class="hidden">
+                    <span class="inline-flex items-center gap-1.5 bg-emerald-900/40 text-emerald-300 text-xs font-medium px-3 py-1 rounded-full border border-emerald-800/50">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
+                        <span id="custom-count-text">0 words</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Mode -->
+        <div class="bg-gray-900 rounded-2xl p-5 space-y-4 border border-gray-800">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Game Mode</h2>
+
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="setMode('classic')" id="mode-classic"
+                    class="mode-btn p-3 rounded-xl border-2 border-indigo-500 bg-indigo-900/30 text-left transition-all hover:scale-[1.02] active:scale-[0.98]">
+                    <div class="text-lg mb-0.5">🔄</div>
+                    <div class="text-xs font-bold text-indigo-300">Classic Flip</div>
+                    <div class="text-[10px] text-gray-500 mt-0.5">Tap to reveal</div>
+                </button>
+                <button onclick="setMode('mc')" id="mode-mc"
+                    class="mode-btn p-3 rounded-xl border border-gray-700 bg-gray-800 text-left transition-all hover:scale-[1.02] active:scale-[0.98]">
+                    <div class="text-lg mb-0.5">🎯</div>
+                    <div class="text-xs font-bold text-gray-300">Multiple Choice</div>
+                    <div class="text-[10px] text-gray-500 mt-0.5">Pick the right word</div>
+                </button>
+                <button onclick="setMode('type')" id="mode-type"
+                    class="mode-btn p-3 rounded-xl border border-gray-700 bg-gray-800 text-left transition-all hover:scale-[1.02] active:scale-[0.98]">
+                    <div class="text-lg mb-0.5">⌨️</div>
+                    <div class="text-xs font-bold text-gray-300">Type It</div>
+                    <div class="text-[10px] text-gray-500 mt-0.5">Spell the word</div>
+                </button>
+                <button onclick="setMode('match')" id="mode-match"
+                    class="mode-btn p-3 rounded-xl border border-gray-700 bg-gray-800 text-left transition-all hover:scale-[1.02] active:scale-[0.98]">
+                    <div class="text-lg mb-0.5">🧩</div>
+                    <div class="text-xs font-bold text-gray-300">Match Up</div>
+                    <div class="text-[10px] text-gray-500 mt-0.5">Pair words together</div>
+                </button>
+                <button onclick="setMode('speed')" id="mode-speed"
+                    class="mode-btn p-3 rounded-xl border border-gray-700 bg-gray-800 text-left transition-all hover:scale-[1.02] active:scale-[0.98]">
+                    <div class="text-lg mb-0.5">⚡</div>
+                    <div class="text-xs font-bold text-gray-300">Speed Round</div>
+                    <div class="text-[10px] text-gray-500 mt-0.5">Beat the clock</div>
+                </button>
+                <button onclick="setMode('scroll')" id="mode-scroll"
+                    class="mode-btn p-3 rounded-xl border border-gray-700 bg-gray-800 text-left transition-all hover:scale-[1.02] active:scale-[0.98]">
+                    <div class="text-lg mb-0.5">📜</div>
+                    <div class="text-xs font-bold text-gray-300">Scroll Review</div>
+                    <div class="text-[10px] text-gray-500 mt-0.5">Browse all words</div>
+                </button>
+            </div>
+
+            <!-- Mode description -->
+            <div id="mode-description" class="bg-gray-800/50 rounded-xl px-3 py-2 text-xs text-gray-400 border border-gray-800">
+                <span class="font-semibold text-indigo-400">Classic Flip:</span> See a word, tap to reveal its meaning. Mark what you know and review what you don't.
+            </div>
+        </div>
+
+        <!-- Settings (mode-specific) -->
+        <div id="settings-panel" class="bg-gray-900 rounded-2xl p-5 space-y-4 border border-gray-800">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Settings</h2>
+
+            <!-- Shuffle toggle -->
+            <div class="flex items-center justify-between">
+                <div>
+                    <span class="text-sm text-gray-400">Shuffle cards</span>
+                    <p class="text-xs text-gray-600">Randomize order each round</p>
+                </div>
+                <button id="btn-shuffle" onclick="toggleShuffle()" class="relative w-11 h-6 rounded-full bg-indigo-600 transition-colors">
+                    <span id="shuffle-knob" class="absolute top-0.5 left-5 w-5 h-5 bg-white rounded-full shadow transition-all"></span>
+                </button>
+            </div>
+
+            <!-- Speed mode timer (only visible in speed mode) -->
+            <div id="speed-settings" class="hidden pt-2 border-t border-gray-800 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-400">Time per word</span>
+                    <div class="flex gap-2">
+                        <button onclick="setSpeedTimer(5)" class="speed-dur px-3 py-1 rounded-lg text-xs font-medium bg-gray-800 border border-gray-700 hover:border-indigo-500 transition">5s</button>
+                        <button onclick="setSpeedTimer(10)" class="speed-dur px-3 py-1 rounded-lg text-xs font-medium bg-indigo-900/50 border border-indigo-500 text-indigo-300">10s</button>
+                        <button onclick="setSpeedTimer(15)" class="speed-dur px-3 py-1 rounded-lg text-xs font-medium bg-gray-800 border border-gray-700 hover:border-indigo-500 transition">15s</button>
+                        <button onclick="setSpeedTimer(20)" class="speed-dur px-3 py-1 rounded-lg text-xs font-medium bg-gray-800 border border-gray-700 hover:border-indigo-500 transition">20s</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Match count (only visible in match mode) -->
+            <div id="match-settings" class="hidden pt-2 border-t border-gray-800">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-400">Pairs to match</span>
+                    <div class="flex items-center gap-3">
+                        <button onclick="adjustMatchCount(-1)" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm font-bold transition flex items-center justify-center border border-gray-700">−</button>
+                        <span id="match-count" class="text-xl font-bold text-indigo-400">6</span>
+                        <button onclick="adjustMatchCount(1)" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm font-bold transition flex items-center justify-center border border-gray-700">+</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Start Button -->
+        <button id="btn-start" onclick="startGame()" disabled
+            class="w-full py-4 rounded-2xl font-bold text-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white shadow-lg shadow-indigo-900/30">
+            Start Game
+        </button>
+    </div>
+
+    <!-- ======================== SCREEN: CLASSIC ======================== -->
+    <div id="screen-classic" class="w-full max-w-md hidden">
+        <div class="space-y-5 fade-in">
+            <!-- Top bar -->
+            <div class="flex items-center justify-between">
+                <button onclick="backToSetup()" class="text-xs text-gray-600 hover:text-gray-400 transition">← Setup</button>
+                <div class="flex items-center gap-2">
+                    <span id="classic-progress" class="text-sm font-semibold text-gray-400">1 / 10</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span id="classic-known" class="text-xs font-bold text-emerald-400">0</span>
+                    <span class="text-xs text-gray-600">/</span>
+                    <span id="classic-unknown" class="text-xs font-bold text-red-400">0</span>
+                </div>
+            </div>
+
+            <!-- Progress bar -->
+            <div class="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                <div id="classic-bar" class="h-full bg-indigo-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+
+            <!-- Streak indicator -->
+            <div id="classic-streak-container" class="hidden text-center">
+                <span id="classic-streak" class="inline-flex items-center gap-1 bg-amber-900/40 text-amber-300 text-xs font-bold px-3 py-1 rounded-full border border-amber-800/50 streak-fire">
+                    🔥 <span id="classic-streak-num">0</span> streak
+                </span>
+            </div>
+
+            <!-- Flip card -->
+            <div class="card-flip mx-auto w-full" style="height: 280px;" onclick="flipClassicCard()">
+                <div id="classic-card-inner" class="card-flip-inner w-full h-full relative">
+                    <!-- Front -->
+                    <div class="card-front absolute inset-0 bg-gray-900 rounded-3xl border border-gray-800 flex flex-col items-center justify-center p-8 cursor-pointer hover:border-indigo-500/40 transition">
+                        <p id="classic-word-front" class="text-3xl font-black text-white text-center leading-tight"></p>
+                        <p class="text-xs text-gray-600 mt-4">Tap to reveal</p>
+                    </div>
+                    <!-- Back -->
+                    <div class="card-back absolute inset-0 bg-gradient-to-br from-indigo-900/40 to-gray-900 rounded-3xl border border-indigo-500/30 flex flex-col items-center justify-center p-8">
+                        <p class="text-xs text-indigo-400 uppercase tracking-widest font-semibold mb-2">Answer</p>
+                        <p id="classic-word-back" class="text-2xl font-black text-indigo-300 text-center leading-tight"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div id="classic-actions" class="flex gap-3 opacity-0 transition-opacity duration-300">
+                <button onclick="classicAnswer('unknown')" class="flex-1 py-4 rounded-2xl font-bold text-base transition-all bg-gray-800 hover:bg-gray-700 border border-gray-700 active:scale-[0.96] text-red-400">
+                    ✕ Still Learning
+                </button>
+                <button onclick="classicAnswer('known')" class="flex-1 py-4 rounded-2xl font-bold text-base transition-all bg-emerald-600 hover:bg-emerald-500 active:scale-[0.96] text-white shadow-lg shadow-emerald-900/30">
+                    ✓ Got It!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================== SCREEN: MULTIPLE CHOICE ======================== -->
+    <div id="screen-mc" class="w-full max-w-md hidden">
+        <div class="space-y-5 fade-in">
+            <div class="flex items-center justify-between">
+                <button onclick="backToSetup()" class="text-xs text-gray-600 hover:text-gray-400 transition">← Setup</button>
+                <span id="mc-progress" class="text-sm font-semibold text-gray-400">1 / 10</span>
+                <span id="mc-score" class="text-sm font-bold text-emerald-400">0 pts</span>
+            </div>
+
+            <div class="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                <div id="mc-bar" class="h-full bg-indigo-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+
+            <!-- Streak -->
+            <div id="mc-streak-container" class="hidden text-center">
+                <span class="inline-flex items-center gap-1 bg-amber-900/40 text-amber-300 text-xs font-bold px-3 py-1 rounded-full border border-amber-800/50 streak-fire">
+                    🔥 <span id="mc-streak-num">0</span> streak
+                </span>
+            </div>
+
+            <!-- Question card -->
+            <div class="bg-gray-900 rounded-3xl border border-gray-800 p-8 text-center min-h-[160px] flex flex-col items-center justify-center">
+                <p class="text-xs text-gray-500 uppercase tracking-widest font-semibold mb-2">Which word is correct?</p>
+                <p id="mc-question" class="text-2xl font-black text-white leading-tight"></p>
+            </div>
+
+            <!-- Answer buttons -->
+            <div id="mc-options" class="grid grid-cols-2 gap-3"></div>
+
+            <!-- Next button (hidden until answered) -->
+            <button id="mc-next" onclick="mcNext()" class="hidden w-full py-3.5 rounded-2xl font-bold text-base transition-all bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white shadow-lg shadow-indigo-900/30">
+                Next →
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================== SCREEN: TYPE IT ======================== -->
+    <div id="screen-type" class="w-full max-w-md hidden">
+        <div class="space-y-5 fade-in">
+            <div class="flex items-center justify-between">
+                <button onclick="backToSetup()" class="text-xs text-gray-600 hover:text-gray-400 transition">← Setup</button>
+                <span id="type-progress" class="text-sm font-semibold text-gray-400">1 / 10</span>
+                <span id="type-score" class="text-sm font-bold text-emerald-400">0 pts</span>
+            </div>
+
+            <div class="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                <div id="type-bar" class="h-full bg-indigo-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+
+            <!-- Streak -->
+            <div id="type-streak-container" class="hidden text-center">
+                <span class="inline-flex items-center gap-1 bg-amber-900/40 text-amber-300 text-xs font-bold px-3 py-1 rounded-full border border-amber-800/50 streak-fire">
+                    🔥 <span id="type-streak-num">0</span> streak
+                </span>
+            </div>
+
+            <!-- Prompt -->
+            <div class="bg-gray-900 rounded-3xl border border-gray-800 p-8 text-center min-h-[140px] flex flex-col items-center justify-center">
+                <p class="text-xs text-gray-500 uppercase tracking-widest font-semibold mb-2">Type this word</p>
+                <p id="type-prompt" class="text-2xl font-black text-white leading-tight"></p>
+                <p id="type-hint" class="text-sm text-gray-600 mt-3"></p>
+            </div>
+
+            <!-- Input -->
+            <div class="relative">
+                <input id="type-input" type="text" autocomplete="off" spellcheck="false"
+                    class="type-input w-full bg-gray-800 border border-gray-700 rounded-2xl px-4 py-4 text-lg text-center font-semibold focus:border-indigo-500 transition"
+                    placeholder="Type your answer..."
+                    onkeydown="if(event.key==='Enter') typeSubmit()">
+            </div>
+
+            <!-- Feedback -->
+            <div id="type-feedback" class="hidden text-center space-y-2">
+                <p id="type-feedback-text" class="text-lg font-bold"></p>
+                <p id="type-correct-answer" class="text-sm text-gray-400"></p>
+            </div>
+
+            <!-- Submit / Next -->
+            <button id="type-submit-btn" onclick="typeSubmit()"
+                class="w-full py-3.5 rounded-2xl font-bold text-base transition-all bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white shadow-lg shadow-indigo-900/30">
+                Check
+            </button>
+            <button id="type-next-btn" onclick="typeNext()" class="hidden w-full py-3.5 rounded-2xl font-bold text-base transition-all bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white shadow-lg shadow-indigo-900/30">
+                Next →
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================== SCREEN: MATCH UP ======================== -->
+    <div id="screen-match" class="w-full max-w-lg hidden">
+        <div class="space-y-5 fade-in">
+            <div class="flex items-center justify-between">
+                <button onclick="backToSetup()" class="text-xs text-gray-600 hover:text-gray-400 transition">← Setup</button>
+                <span id="match-progress-label" class="text-sm font-semibold text-gray-400">0 / 6 matched</span>
+                <span id="match-moves" class="text-sm text-gray-500">0 moves</span>
+            </div>
+
+            <div class="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                <div id="match-bar" class="h-full bg-indigo-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+
+            <!-- Match grid -->
+            <div id="match-grid" class="grid grid-cols-3 gap-2"></div>
+        </div>
+    </div>
+
+    <!-- ======================== SCREEN: SPEED ROUND ======================== -->
+    <div id="screen-speed" class="w-full max-w-md hidden">
+        <div class="space-y-5 fade-in">
+            <div class="flex items-center justify-between">
+                <button onclick="backToSetup()" class="text-xs text-gray-600 hover:text-gray-400 transition">← Setup</button>
+                <span id="speed-progress" class="text-sm font-semibold text-gray-400">1 / 10</span>
+                <span id="speed-score" class="text-sm font-bold text-emerald-400">0 pts</span>
+            </div>
+
+            <!-- Timer bar -->
+            <div class="h-2 bg-gray-800 rounded-full overflow-hidden">
+                <div id="speed-timer-bar" class="timer-bar h-full bg-indigo-500 rounded-full" style="width: 100%"></div>
+            </div>
+
+            <!-- Streak -->
+            <div id="speed-streak-container" class="hidden text-center">
+                <span class="inline-flex items-center gap-1 bg-amber-900/40 text-amber-300 text-xs font-bold px-3 py-1 rounded-full border border-amber-800/50 streak-fire">
+                    ⚡ <span id="speed-streak-num">0</span> streak
+                </span>
+            </div>
+
+            <!-- Question -->
+            <div class="bg-gray-900 rounded-3xl border border-gray-800 p-6 text-center min-h-[120px] flex flex-col items-center justify-center">
+                <p id="speed-question" class="text-2xl font-black text-white leading-tight"></p>
+            </div>
+
+            <!-- Answer buttons -->
+            <div id="speed-options" class="grid grid-cols-2 gap-3"></div>
+        </div>
+    </div>
+
+    <!-- ======================== SCREEN: SCROLL REVIEW ======================== -->
+    <div id="screen-scroll" class="w-full max-w-md hidden">
+        <div class="space-y-5 fade-in">
+            <div class="flex items-center justify-between">
+                <button onclick="backToSetup()" class="text-xs text-gray-600 hover:text-gray-400 transition">← Setup</button>
+                <h2 class="text-sm font-semibold text-gray-400">Scroll Review</h2>
+                <span id="scroll-count" class="text-xs text-gray-500">0 words</span>
+            </div>
+
+            <!-- Search -->
+            <div class="relative">
+                <input id="scroll-search" type="text" placeholder="Search words..."
+                    class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition pl-9"
+                    oninput="filterScrollList()">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+
+            <!-- Word list -->
+            <div id="scroll-list" class="space-y-2 max-h-[60vh] overflow-y-auto pr-1"></div>
+
+            <button onclick="backToSetup()" class="w-full py-3 rounded-2xl font-bold text-sm bg-gray-800 hover:bg-gray-700 border border-gray-700 transition active:scale-[0.98]">
+                ← Back to Setup
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================== SCREEN: RESULTS ======================== -->
+    <div id="screen-results" class="w-full max-w-md hidden">
+        <div class="text-center space-y-6 fade-in">
+            <div class="space-y-2">
+                <div id="results-emoji" class="text-6xl pop-in">🎉</div>
+                <h2 id="results-title" class="text-2xl font-black">Round Complete!</h2>
+            </div>
+
+            <!-- Score summary -->
+            <div id="results-score-card" class="bg-gradient-to-br from-indigo-900/40 to-gray-900 border border-indigo-500/30 rounded-2xl p-6 space-y-4 pop-in">
+                <div class="flex justify-center gap-8">
+                    <div class="text-center">
+                        <p class="text-4xl font-black text-emerald-400" id="results-correct">0</p>
+                        <p class="text-xs text-gray-500 mt-1">Correct</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-4xl font-black text-red-400" id="results-wrong">0</p>
+                        <p class="text-xs text-gray-500 mt-1">Wrong</p>
+                    </div>
+                </div>
+                <div class="h-px bg-gray-800"></div>
+                <div class="flex justify-center gap-8">
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-amber-400" id="results-streak">0</p>
+                        <p class="text-xs text-gray-500 mt-1">Best Streak</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-indigo-400" id="results-accuracy">0%</p>
+                        <p class="text-xs text-gray-500 mt-1">Accuracy</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Missed words -->
+            <div id="results-missed-section" class="hidden bg-gray-900 rounded-2xl p-4 border border-gray-800 text-left max-h-48 overflow-y-auto space-y-1">
+                <p class="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">Words to Review</p>
+                <div id="results-missed-list"></div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-3">
+                <button onclick="backToSetup()" class="flex-1 py-3.5 rounded-2xl font-bold text-sm bg-gray-800 hover:bg-gray-700 border border-gray-700 transition active:scale-[0.98]">
+                    ← Setup
+                </button>
+                <button id="btn-review-missed" onclick="reviewMissed()" class="hidden flex-1 py-3.5 rounded-2xl font-bold text-sm bg-amber-600 hover:bg-amber-500 transition active:scale-[0.98] text-white shadow-lg shadow-amber-900/30">
+                    🔁 Review Missed
+                </button>
+                <button onclick="startGame()" class="flex-1 py-3.5 rounded-2xl font-bold text-sm bg-indigo-600 hover:bg-indigo-500 transition active:scale-[0.98] text-white shadow-lg shadow-indigo-900/30">
+                    Play Again
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ═══════════════════════════════════════════
+    //  STATE
+    // ═══════════════════════════════════════════
+    const SPREADSHEET_ID = '1HGKRjjWsGjGaSHOj5q7hGRSv9eorC61vSwkXAMC_r9c';
+    const MASTER_GID = '2104177411';
+
+    let state = {
+        source: 'sheets',
+        collections: [],
+        currentCollection: null,
+        vocabSets: [],
+        _chapterSets: [],
+        currentVocab: [],
+        // Settings
+        mode: 'classic',       // 'classic' | 'mc' | 'type' | 'match' | 'speed' | 'scroll'
+        shuffleCards: true,
+        speedTimer: 10,        // seconds per word in speed mode
+        matchCount: 6,         // pairs in match mode
+        // Game state
+        wordPool: [],
+        wordIndex: 0,
+        score: 0,
+        totalCorrect: 0,
+        totalWrong: 0,
+        streak: 0,
+        bestStreak: 0,
+        missedWords: [],
+        cardFlipped: false,
+        answered: false,
+        // Speed mode
+        speedInterval: null,
+        speedTimeLeft: 0,
+        // Match mode
+        matchPairs: [],
+        matchSelected: null,   // {el, idx, type}
+        matchMoves: 0,
+        matchFound: 0,
+        // Timer
+        timerInterval: null,
+    };
+
+    const MODE_INFO = {
+        classic: { emoji: '🔄', name: 'Classic Flip', desc: 'See a word, tap to reveal its meaning. Mark what you know and review what you don\'t.' },
+        mc:      { emoji: '🎯', name: 'Multiple Choice', desc: 'A word appears — pick the correct match from 4 options. Streaks earn bonus points!' },
+        type:    { emoji: '⌨️', name: 'Type It', desc: 'See the word, type the correct spelling. Builds muscle memory and recall.' },
+        match:   { emoji: '🧩', name: 'Match Up', desc: 'Tap pairs of matching words to clear the board. Fewest moves wins!' },
+        speed:   { emoji: '⚡', name: 'Speed Round', desc: 'Multiple choice against a countdown timer. How many can you get before time runs out?' },
+        scroll:  { emoji: '📜', name: 'Scroll Review', desc: 'Browse through all words in a scrollable list. Great for a quick overview.' },
+    };
+
+    // ═══════════════════════════════════════════
+    //  INIT
+    // ═══════════════════════════════════════════
+    document.addEventListener('DOMContentLoaded', () => {
+        loadMasterSheet();
+    });
+
+    // ═══════════════════════════════════════════
+    //  DATA LOADING
+    // ═══════════════════════════════════════════
+    function sheetUrl(gid) {
+        return `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${gid}`;
+    }
+
+    function loadMasterSheet() {
+        fetchCSV(sheetUrl(MASTER_GID), (results) => {
+            const rows = results.data.filter(r => r['Set Collection Name']);
+            state.collections = rows;
+            populateCollections();
+        });
+    }
+
+    function fetchCSV(url, callback) {
+        Papa.parse(url, {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: callback,
+            error: (err) => console.error('CSV fetch error:', err)
+        });
+    }
+
+    function populateCollections() {
+        const sel = document.getElementById('select-collection');
+        sel.innerHTML = '<option value="">— Select a collection —</option>';
+
+        const seen = new Set();
+        state.collections.forEach(row => {
+            const name = row['Set Collection Name'];
+            if (!seen.has(name)) {
+                seen.add(name);
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                sel.appendChild(opt);
+            }
+        });
+    }
+
+    function onCollectionChange() {
+        const name = document.getElementById('select-collection').value;
+        const container = document.getElementById('vocab-set-container');
+        const badge = document.getElementById('word-count-badge');
+
+        if (!name) {
+            container.classList.add('hidden');
+            badge.classList.add('hidden');
+            state.currentCollection = null;
+            state.currentVocab = [];
+            updateStartButton();
+            return;
+        }
+
+        const collectionRows = state.collections.filter(r => r['Set Collection Name'] === name);
+        state.currentCollection = collectionRows;
+        loadTab(collectionRows[0]);
+    }
+
+    function loadTab(tabRow) {
+        const loading = document.getElementById('sheets-loading');
+        const container = document.getElementById('vocab-set-container');
+        const badge = document.getElementById('word-count-badge');
+
+        loading.classList.remove('hidden');
+        container.classList.add('hidden');
+        badge.classList.add('hidden');
+
+        fetchCSV(sheetUrl(tabRow['GID']), (results) => {
+            loading.classList.add('hidden');
+            const type = (tabRow['Type'] || '').trim();
+            const rows = results.data;
+
+            if (type === 'Textbook') {
+                parseTextbookTab(rows);
+            } else if (type === 'Set') {
+                parseSetTab(rows);
+            }
+        });
+    }
+
+    function parseTextbookTab(rows) {
+        const sets = [];
+        const chapterMap = {};
+
+        rows.forEach(row => {
+            const title = (row['Text Title'] || '').trim();
+            const page = (row['Page Number'] || '').trim();
+            const chapter = (row['Chapter'] || '').trim();
+            const vocabRaw = (row['Sidebar Vocabulary'] || '').trim();
+            if (!title || !vocabRaw) return;
+
+            const label = `${title} (p. ${page}, ch. ${chapter})`;
+            const words = vocabRaw.split(',').map(w => w.trim()).filter(Boolean);
+            if (words.length === 0) return;
+
+            sets.push({ label, words, chapter });
+
+            if (!chapterMap[chapter]) {
+                chapterMap[chapter] = { label: `Chapter ${chapter}`, words: [] };
+            }
+            chapterMap[chapter].words.push(...words);
+        });
+
+        const chapterSets = Object.keys(chapterMap)
+            .sort((a, b) => {
+                const na = parseFloat(a), nb = parseFloat(b);
+                if (!isNaN(na) && !isNaN(nb)) return na - nb;
+                return a.localeCompare(b);
+            })
+            .map(ch => chapterMap[ch]);
+
+        state.vocabSets = sets;
+        state._chapterSets = chapterSets;
+        populateTextbookDropdown(sets, chapterSets);
+    }
+
+    function populateTextbookDropdown(textSets, chapterSets) {
+        const container = document.getElementById('vocab-set-container');
+        const sel = document.getElementById('select-vocab-set');
+        sel.innerHTML = '<option value="">— Select a vocabulary set —</option>';
+
+        const allWords = textSets.flatMap(s => s.words);
+
+        if (allWords.length > 0) {
+            const opt = document.createElement('option');
+            opt.value = '__ALL__';
+            opt.textContent = `All words (${allWords.length})`;
+            sel.appendChild(opt);
+        }
+
+        if (chapterSets.length > 1) {
+            const group = document.createElement('optgroup');
+            group.label = 'By Chapter';
+            chapterSets.forEach((ch, i) => {
+                const opt = document.createElement('option');
+                opt.value = `__CH__${i}`;
+                opt.textContent = `${ch.label} (${ch.words.length} words)`;
+                group.appendChild(opt);
+            });
+            sel.appendChild(group);
+        }
+
+        if (textSets.length > 0) {
+            const group = document.createElement('optgroup');
+            group.label = 'By Text';
+            textSets.forEach((s, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = `${s.label} (${s.words.length} words)`;
+                group.appendChild(opt);
+            });
+            sel.appendChild(group);
+        }
+
+        container.classList.remove('hidden');
+        state.currentVocab = [];
+        updateStartButton();
+    }
+
+    function parseSetTab(rows) {
+        const sets = [];
+        rows.forEach(row => {
+            const name = (row['Set Name'] || row['Set name'] || '').trim();
+            const vocabRaw = (row['Vocabulary'] || '').trim();
+            if (!name || !vocabRaw) return;
+
+            const words = vocabRaw.split(',').map(w => w.trim()).filter(Boolean);
+            if (words.length > 0) {
+                sets.push({ label: name, words });
+            }
+        });
+        state.vocabSets = sets;
+        state._chapterSets = [];
+        populateVocabSets(sets);
+    }
+
+    function populateVocabSets(sets) {
+        const container = document.getElementById('vocab-set-container');
+        const sel = document.getElementById('select-vocab-set');
+
+        sel.innerHTML = '<option value="">— Select a vocabulary set —</option>';
+
+        const allWords = sets.flatMap(s => s.words);
+        if (allWords.length > 0) {
+            const opt = document.createElement('option');
+            opt.value = '__ALL__';
+            opt.textContent = `All words (${allWords.length})`;
+            sel.appendChild(opt);
+        }
+
+        sets.forEach((s, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = `${s.label} (${s.words.length} words)`;
+            sel.appendChild(opt);
+        });
+
+        container.classList.remove('hidden');
+        state.currentVocab = [];
+        updateStartButton();
+    }
+
+    function onVocabSetChange() {
+        const val = document.getElementById('select-vocab-set').value;
+        const badge = document.getElementById('word-count-badge');
+        const countText = document.getElementById('word-count-text');
+
+        if (val === '') {
+            state.currentVocab = [];
+            badge.classList.add('hidden');
+        } else if (val === '__ALL__') {
+            state.currentVocab = state.vocabSets.flatMap(s => s.words);
+            countText.textContent = `${state.currentVocab.length} words loaded`;
+            badge.classList.remove('hidden');
+        } else if (val.startsWith('__CH__')) {
+            const idx = parseInt(val.replace('__CH__', ''));
+            state.currentVocab = state._chapterSets[idx].words;
+            countText.textContent = `${state.currentVocab.length} words loaded`;
+            badge.classList.remove('hidden');
+        } else {
+            const idx = parseInt(val);
+            state.currentVocab = state.vocabSets[idx].words;
+            countText.textContent = `${state.currentVocab.length} words loaded`;
+            badge.classList.remove('hidden');
+        }
+
+        updateStartButton();
+    }
+
+    function onCustomWordsChange() {
+        const raw = document.getElementById('custom-words').value;
+        const words = raw.split(',').map(w => w.trim()).filter(Boolean);
+        state.currentVocab = words;
+
+        const countEl = document.getElementById('custom-word-count');
+        const countText = document.getElementById('custom-count-text');
+        if (words.length > 0) {
+            countText.textContent = `${words.length} words`;
+            countEl.classList.remove('hidden');
+        } else {
+            countEl.classList.add('hidden');
+        }
+
+        updateStartButton();
+    }
+
+    // ═══════════════════════════════════════════
+    //  SOURCE TOGGLE
+    // ═══════════════════════════════════════════
+    function setSource(src) {
+        state.source = src;
+        const btnSheets = document.getElementById('btn-source-sheets');
+        const btnCustom = document.getElementById('btn-source-custom');
+        const srcSheets = document.getElementById('source-sheets');
+        const srcCustom = document.getElementById('source-custom');
+
+        if (src === 'sheets') {
+            btnSheets.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all bg-indigo-600 text-white';
+            btnCustom.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all text-gray-400 hover:text-white';
+            srcSheets.classList.remove('hidden');
+            srcCustom.classList.add('hidden');
+        } else {
+            btnCustom.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all bg-indigo-600 text-white';
+            btnSheets.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all text-gray-400 hover:text-white';
+            srcSheets.classList.add('hidden');
+            srcCustom.classList.remove('hidden');
+        }
+
+        if (src === 'custom') {
+            onCustomWordsChange();
+        } else {
+            onVocabSetChange();
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    //  MODE SELECTION
+    // ═══════════════════════════════════════════
+    function setMode(mode) {
+        state.mode = mode;
+
+        // Update button styles
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.className = 'mode-btn p-3 rounded-xl border border-gray-700 bg-gray-800 text-left transition-all hover:scale-[1.02] active:scale-[0.98]';
+        });
+        const activeBtn = document.getElementById(`mode-${mode}`);
+        if (activeBtn) {
+            activeBtn.className = 'mode-btn p-3 rounded-xl border-2 border-indigo-500 bg-indigo-900/30 text-left transition-all hover:scale-[1.02] active:scale-[0.98]';
+        }
+
+        // Update description
+        const info = MODE_INFO[mode];
+        document.getElementById('mode-description').innerHTML = `<span class="font-semibold text-indigo-400">${info.name}:</span> ${info.desc}`;
+
+        // Show/hide mode-specific settings
+        document.getElementById('speed-settings').classList.toggle('hidden', mode !== 'speed');
+        document.getElementById('match-settings').classList.toggle('hidden', mode !== 'match');
+
+        updateStartButton();
+    }
+
+    // ═══════════════════════════════════════════
+    //  SETTINGS
+    // ═══════════════════════════════════════════
+    function toggleShuffle() {
+        state.shuffleCards = !state.shuffleCards;
+        const btn = document.getElementById('btn-shuffle');
+        const knob = document.getElementById('shuffle-knob');
+        if (state.shuffleCards) {
+            btn.className = 'relative w-11 h-6 rounded-full bg-indigo-600 transition-colors';
+            knob.className = 'absolute top-0.5 left-5 w-5 h-5 bg-white rounded-full shadow transition-all';
+        } else {
+            btn.className = 'relative w-11 h-6 rounded-full bg-gray-700 transition-colors';
+            knob.className = 'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-all';
+        }
+    }
+
+    function setSpeedTimer(seconds) {
+        state.speedTimer = seconds;
+        document.querySelectorAll('.speed-dur').forEach(btn => {
+            btn.className = 'speed-dur px-3 py-1 rounded-lg text-xs font-medium bg-gray-800 border border-gray-700 hover:border-indigo-500 transition';
+        });
+        event.target.className = 'speed-dur px-3 py-1 rounded-lg text-xs font-medium bg-indigo-900/50 border border-indigo-500 text-indigo-300';
+    }
+
+    function adjustMatchCount(delta) {
+        state.matchCount = Math.max(3, Math.min(10, state.matchCount + delta));
+        document.getElementById('match-count').textContent = state.matchCount;
+    }
+
+    function updateStartButton() {
+        const btn = document.getElementById('btn-start');
+        const minWords = state.mode === 'mc' || state.mode === 'speed' ? 4 : state.mode === 'match' ? 3 : 2;
+        btn.disabled = state.currentVocab.length < minWords;
+    }
+
+    // ═══════════════════════════════════════════
+    //  SCREENS
+    // ═══════════════════════════════════════════
+    function showScreen(name) {
+        ['setup', 'classic', 'mc', 'type', 'match', 'speed', 'scroll', 'results'].forEach(s => {
+            const el = document.getElementById(`screen-${s}`);
+            if (el) el.classList.toggle('hidden', s !== name);
+        });
+    }
+
+    function backToSetup() {
+        stopAllTimers();
+        showScreen('setup');
+    }
+
+    // ═══════════════════════════════════════════
+    //  GAME START
+    // ═══════════════════════════════════════════
+    function startGame() {
+        if (state.currentVocab.length < 2) return;
+
+        // Reset common state
+        state.score = 0;
+        state.totalCorrect = 0;
+        state.totalWrong = 0;
+        state.streak = 0;
+        state.bestStreak = 0;
+        state.missedWords = [];
+        state.cardFlipped = false;
+        state.answered = false;
+        state.wordIndex = 0;
+
+        // Build word pool
+        state.wordPool = [...state.currentVocab];
+        if (state.shuffleCards) {
+            state.wordPool = shuffle([...state.wordPool]);
+        }
+
+        // Launch mode
+        switch (state.mode) {
+            case 'classic': startClassic(); break;
+            case 'mc':      startMC(); break;
+            case 'type':    startType(); break;
+            case 'match':   startMatch(); break;
+            case 'speed':   startSpeed(); break;
+            case 'scroll':  startScroll(); break;
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    //  MODE: CLASSIC FLIP
+    // ═══════════════════════════════════════════
+    function startClassic() {
+        state.wordIndex = 0;
+        showScreen('classic');
+        showClassicCard();
+    }
+
+    function showClassicCard() {
+        const total = state.wordPool.length;
+        const idx = state.wordIndex;
+
+        if (idx >= total) {
+            showResults();
+            return;
+        }
+
+        // Reset flip
+        state.cardFlipped = false;
+        document.getElementById('classic-card-inner').classList.remove('flipped');
+        document.getElementById('classic-actions').style.opacity = '0';
+
+        // Set word
+        const word = state.wordPool[idx];
+        document.getElementById('classic-word-front').textContent = word;
+        document.getElementById('classic-word-back').textContent = word;
+
+        // Update progress
+        document.getElementById('classic-progress').textContent = `${idx + 1} / ${total}`;
+        document.getElementById('classic-bar').style.width = `${(idx / total) * 100}%`;
+        document.getElementById('classic-known').textContent = state.totalCorrect;
+        document.getElementById('classic-unknown').textContent = state.totalWrong;
+
+        // Streak
+        updateStreakDisplay('classic');
+    }
+
+    function flipClassicCard() {
+        if (state.cardFlipped) return;
+        state.cardFlipped = true;
+        document.getElementById('classic-card-inner').classList.add('flipped');
+        document.getElementById('classic-actions').style.opacity = '1';
+    }
+
+    function classicAnswer(result) {
+        if (!state.cardFlipped) return;
+
+        const word = state.wordPool[state.wordIndex];
+
+        if (result === 'known') {
+            state.totalCorrect++;
+            state.streak++;
+            if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+        } else {
+            state.totalWrong++;
+            state.streak = 0;
+            state.missedWords.push(word);
+        }
+
+        state.wordIndex++;
+        showClassicCard();
+    }
+
+    // ═══════════════════════════════════════════
+    //  MODE: MULTIPLE CHOICE
+    // ═══════════════════════════════════════════
+    function startMC() {
+        state.wordIndex = 0;
+        state.score = 0;
+        showScreen('mc');
+        showMCQuestion();
+    }
+
+    function showMCQuestion() {
+        const total = state.wordPool.length;
+        const idx = state.wordIndex;
+
+        if (idx >= total) {
+            showResults();
+            return;
+        }
+
+        state.answered = false;
+        const correctWord = state.wordPool[idx];
+
+        // Build 4 options: 1 correct + 3 distractors
+        const distractors = state.currentVocab.filter(w => w !== correctWord);
+        const shuffledDistractors = shuffle([...distractors]).slice(0, 3);
+        const options = shuffle([correctWord, ...shuffledDistractors]);
+
+        // Update UI
+        document.getElementById('mc-progress').textContent = `${idx + 1} / ${total}`;
+        document.getElementById('mc-bar').style.width = `${(idx / total) * 100}%`;
+        document.getElementById('mc-score').textContent = `${state.score} pts`;
+        document.getElementById('mc-question').textContent = correctWord;
+        document.getElementById('mc-next').classList.add('hidden');
+
+        updateStreakDisplay('mc');
+
+        // Render options
+        const optionsEl = document.getElementById('mc-options');
+        optionsEl.innerHTML = '';
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'mc-btn py-4 px-3 rounded-2xl font-semibold text-sm bg-gray-800 border border-gray-700 hover:border-indigo-500 transition active:scale-[0.96]';
+            btn.textContent = opt;
+            btn.onclick = () => mcAnswer(btn, opt, correctWord);
+            optionsEl.appendChild(btn);
+        });
+    }
+
+    function mcAnswer(btn, selected, correct) {
+        if (state.answered) return;
+        state.answered = true;
+
+        const isCorrect = selected === correct;
+
+        // Highlight buttons
+        document.querySelectorAll('#mc-options .mc-btn').forEach(b => {
+            if (b.textContent === correct) b.classList.add('correct');
+            if (b === btn && !isCorrect) b.classList.add('wrong');
+            b.style.pointerEvents = 'none';
+        });
+
+        if (isCorrect) {
+            state.totalCorrect++;
+            state.streak++;
+            const bonus = Math.min(state.streak, 5); // Streak bonus caps at 5x
+            state.score += bonus;
+            if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+        } else {
+            state.totalWrong++;
+            state.streak = 0;
+            state.missedWords.push(correct);
+        }
+
+        updateStreakDisplay('mc');
+        document.getElementById('mc-score').textContent = `${state.score} pts`;
+        document.getElementById('mc-next').classList.remove('hidden');
+    }
+
+    function mcNext() {
+        state.wordIndex++;
+        showMCQuestion();
+    }
+
+    // ═══════════════════════════════════════════
+    //  MODE: TYPE IT
+    // ═══════════════════════════════════════════
+    function startType() {
+        state.wordIndex = 0;
+        state.score = 0;
+        showScreen('type');
+        showTypePrompt();
+    }
+
+    function showTypePrompt() {
+        const total = state.wordPool.length;
+        const idx = state.wordIndex;
+
+        if (idx >= total) {
+            showResults();
+            return;
+        }
+
+        state.answered = false;
+        const word = state.wordPool[idx];
+
+        // Show scrambled hint
+        const hint = generateHint(word);
+
+        document.getElementById('type-progress').textContent = `${idx + 1} / ${total}`;
+        document.getElementById('type-bar').style.width = `${(idx / total) * 100}%`;
+        document.getElementById('type-score').textContent = `${state.score} pts`;
+        document.getElementById('type-prompt').textContent = word;
+        document.getElementById('type-hint').textContent = `${word.length} letters`;
+        document.getElementById('type-input').value = '';
+        document.getElementById('type-input').disabled = false;
+        document.getElementById('type-input').focus();
+        document.getElementById('type-feedback').classList.add('hidden');
+        document.getElementById('type-submit-btn').classList.remove('hidden');
+        document.getElementById('type-next-btn').classList.add('hidden');
+
+        updateStreakDisplay('type');
+    }
+
+    function generateHint(word) {
+        // Show first and last letter, underscores in between
+        if (word.length <= 2) return word;
+        return word[0] + '_'.repeat(word.length - 2) + word[word.length - 1];
+    }
+
+    function typeSubmit() {
+        if (state.answered) return;
+        state.answered = true;
+
+        const word = state.wordPool[state.wordIndex];
+        const input = document.getElementById('type-input').value.trim();
+        const isCorrect = input.toLowerCase() === word.toLowerCase();
+
+        const feedbackEl = document.getElementById('type-feedback');
+        const feedbackText = document.getElementById('type-feedback-text');
+        const correctAnswer = document.getElementById('type-correct-answer');
+
+        if (isCorrect) {
+            state.totalCorrect++;
+            state.streak++;
+            state.score += Math.min(state.streak, 5);
+            if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+            feedbackText.textContent = '✓ Correct!';
+            feedbackText.className = 'text-lg font-bold text-emerald-400';
+            correctAnswer.textContent = '';
+        } else {
+            state.totalWrong++;
+            state.streak = 0;
+            state.missedWords.push(word);
+            feedbackText.textContent = '✕ Not quite';
+            feedbackText.className = 'text-lg font-bold text-red-400';
+            correctAnswer.textContent = `The answer was: ${word}`;
+        }
+
+        feedbackEl.classList.remove('hidden');
+        document.getElementById('type-input').disabled = true;
+        document.getElementById('type-submit-btn').classList.add('hidden');
+        document.getElementById('type-next-btn').classList.remove('hidden');
+
+        updateStreakDisplay('type');
+        document.getElementById('type-score').textContent = `${state.score} pts`;
+    }
+
+    function typeNext() {
+        state.wordIndex++;
+        showTypePrompt();
+    }
+
+    // ═══════════════════════════════════════════
+    //  MODE: MATCH UP
+    // ═══════════════════════════════════════════
+    function startMatch() {
+        const count = Math.min(state.matchCount, state.wordPool.length);
+
+        // Pick words and create pairs (word appears twice — match identical words)
+        const words = state.wordPool.slice(0, count);
+        state.matchPairs = [];
+        words.forEach((w, i) => {
+            state.matchPairs.push({ word: w, pairId: i, type: 'a' });
+            state.matchPairs.push({ word: w, pairId: i, type: 'b' });
+        });
+        state.matchPairs = shuffle([...state.matchPairs]);
+        state.matchSelected = null;
+        state.matchMoves = 0;
+        state.matchFound = 0;
+        state.totalCorrect = 0;
+        state.totalWrong = 0;
+
+        showScreen('match');
+        renderMatchGrid();
+    }
+
+    function renderMatchGrid() {
+        const grid = document.getElementById('match-grid');
+        grid.innerHTML = '';
+
+        const total = state.matchPairs.length;
+        // Determine columns based on count
+        const cols = total <= 8 ? 2 : total <= 12 ? 3 : 4;
+        grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+        state.matchPairs.forEach((pair, i) => {
+            const btn = document.createElement('button');
+            btn.id = `match-tile-${i}`;
+            btn.className = 'py-4 px-2 rounded-xl text-sm font-semibold bg-gray-800 border border-gray-700 hover:border-indigo-500 transition active:scale-[0.96] text-center break-words min-h-[56px]';
+            btn.textContent = pair.word;
+            btn.onclick = () => matchSelect(i);
+            grid.appendChild(btn);
+        });
+
+        updateMatchProgress();
+    }
+
+    function matchSelect(index) {
+        const pair = state.matchPairs[index];
+        const el = document.getElementById(`match-tile-${index}`);
+
+        if (el.disabled) return;
+
+        // If same tile clicked, deselect
+        if (state.matchSelected && state.matchSelected.idx === index) {
+            el.classList.remove('ring-2', 'ring-indigo-500');
+            state.matchSelected = null;
+            return;
+        }
+
+        // If nothing selected, select this one
+        if (!state.matchSelected) {
+            state.matchSelected = { el, idx: index, pair };
+            el.classList.add('ring-2', 'ring-indigo-500');
+            return;
+        }
+
+        // Second selection — check match
+        state.matchMoves++;
+        const prev = state.matchSelected;
+        prev.el.classList.remove('ring-2', 'ring-indigo-500');
+
+        if (prev.pair.pairId === pair.pairId && prev.idx !== index) {
+            // Match found!
+            state.matchFound++;
+            state.totalCorrect++;
+
+            el.classList.add('bg-emerald-900/40', 'border-emerald-500/50', 'text-emerald-400');
+            prev.el.classList.add('bg-emerald-900/40', 'border-emerald-500/50', 'text-emerald-400');
+
+            el.disabled = true;
+            prev.el.disabled = true;
+            el.style.pointerEvents = 'none';
+            prev.el.style.pointerEvents = 'none';
+        } else {
+            // No match — brief red flash
+            state.totalWrong++;
+            el.classList.add('border-red-500/50');
+            prev.el.classList.add('border-red-500/50');
+            setTimeout(() => {
+                el.classList.remove('border-red-500/50');
+                prev.el.classList.remove('border-red-500/50');
+            }, 400);
+        }
+
+        state.matchSelected = null;
+        updateMatchProgress();
+
+        // Check win
+        const totalPairs = state.matchPairs.length / 2;
+        if (state.matchFound >= totalPairs) {
+            state.score = Math.max(0, totalPairs * 3 - state.totalWrong);
+            state.bestStreak = state.matchFound;
+            setTimeout(() => showResults(), 500);
+        }
+    }
+
+    function updateMatchProgress() {
+        const totalPairs = state.matchPairs.length / 2;
+        document.getElementById('match-progress-label').textContent = `${state.matchFound} / ${totalPairs} matched`;
+        document.getElementById('match-moves').textContent = `${state.matchMoves} moves`;
+        document.getElementById('match-bar').style.width = `${(state.matchFound / totalPairs) * 100}%`;
+    }
+
+    // ═══════════════════════════════════════════
+    //  MODE: SPEED ROUND
+    // ═══════════════════════════════════════════
+    function startSpeed() {
+        state.wordIndex = 0;
+        state.score = 0;
+        showScreen('speed');
+        showSpeedQuestion();
+    }
+
+    function showSpeedQuestion() {
+        const total = state.wordPool.length;
+        const idx = state.wordIndex;
+
+        if (idx >= total) {
+            stopAllTimers();
+            showResults();
+            return;
+        }
+
+        state.answered = false;
+        const correctWord = state.wordPool[idx];
+
+        // Build options
+        const distractors = state.currentVocab.filter(w => w !== correctWord);
+        const shuffledDistractors = shuffle([...distractors]).slice(0, 3);
+        const options = shuffle([correctWord, ...shuffledDistractors]);
+
+        document.getElementById('speed-progress').textContent = `${idx + 1} / ${total}`;
+        document.getElementById('speed-score').textContent = `${state.score} pts`;
+        document.getElementById('speed-question').textContent = correctWord;
+
+        updateStreakDisplay('speed');
+
+        // Render options
+        const optionsEl = document.getElementById('speed-options');
+        optionsEl.innerHTML = '';
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'mc-btn py-4 px-3 rounded-2xl font-semibold text-sm bg-gray-800 border border-gray-700 hover:border-indigo-500 transition active:scale-[0.96]';
+            btn.textContent = opt;
+            btn.onclick = () => speedAnswer(btn, opt, correctWord);
+            optionsEl.appendChild(btn);
+        });
+
+        // Start timer
+        startSpeedTimer();
+    }
+
+    function startSpeedTimer() {
+        clearInterval(state.speedInterval);
+        state.speedTimeLeft = state.speedTimer * 10; // 10ths of a second for smooth bar
+        const totalTicks = state.speedTimer * 10;
+
+        const bar = document.getElementById('speed-timer-bar');
+        bar.style.width = '100%';
+        bar.className = 'timer-bar h-full bg-indigo-500 rounded-full';
+
+        state.speedInterval = setInterval(() => {
+            state.speedTimeLeft--;
+            const pct = (state.speedTimeLeft / totalTicks) * 100;
+            bar.style.width = `${pct}%`;
+
+            if (state.speedTimeLeft <= totalTicks * 0.25) {
+                bar.className = 'timer-bar h-full bg-red-500 rounded-full';
+            } else if (state.speedTimeLeft <= totalTicks * 0.5) {
+                bar.className = 'timer-bar h-full bg-amber-500 rounded-full';
+            }
+
+            if (state.speedTimeLeft <= 0) {
+                clearInterval(state.speedInterval);
+                if (!state.answered) {
+                    speedTimeout();
+                }
+            }
+        }, 100);
+    }
+
+    function speedAnswer(btn, selected, correct) {
+        if (state.answered) return;
+        state.answered = true;
+        clearInterval(state.speedInterval);
+
+        const isCorrect = selected === correct;
+
+        document.querySelectorAll('#speed-options .mc-btn').forEach(b => {
+            if (b.textContent === correct) b.classList.add('correct');
+            if (b === btn && !isCorrect) b.classList.add('wrong');
+            b.style.pointerEvents = 'none';
+        });
+
+        if (isCorrect) {
+            state.totalCorrect++;
+            state.streak++;
+            state.score += Math.min(state.streak, 5);
+            if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+        } else {
+            state.totalWrong++;
+            state.streak = 0;
+            state.missedWords.push(correct);
+        }
+
+        updateStreakDisplay('speed');
+        document.getElementById('speed-score').textContent = `${state.score} pts`;
+
+        setTimeout(() => {
+            state.wordIndex++;
+            showSpeedQuestion();
+        }, 800);
+    }
+
+    function speedTimeout() {
+        state.answered = true;
+        const correct = state.wordPool[state.wordIndex];
+        state.totalWrong++;
+        state.streak = 0;
+        state.missedWords.push(correct);
+
+        // Highlight correct answer
+        document.querySelectorAll('#speed-options .mc-btn').forEach(b => {
+            if (b.textContent === correct) b.classList.add('correct');
+            b.style.pointerEvents = 'none';
+        });
+
+        updateStreakDisplay('speed');
+
+        setTimeout(() => {
+            state.wordIndex++;
+            showSpeedQuestion();
+        }, 1000);
+    }
+
+    // ═══════════════════════════════════════════
+    //  MODE: SCROLL REVIEW
+    // ═══════════════════════════════════════════
+    function startScroll() {
+        showScreen('scroll');
+        document.getElementById('scroll-count').textContent = `${state.wordPool.length} words`;
+        document.getElementById('scroll-search').value = '';
+        renderScrollList(state.wordPool);
+    }
+
+    function renderScrollList(words) {
+        const list = document.getElementById('scroll-list');
+        list.innerHTML = '';
+
+        words.forEach((word, i) => {
+            const div = document.createElement('div');
+            div.className = 'bg-gray-900 rounded-xl px-4 py-3 border border-gray-800 flex items-center justify-between hover:border-gray-700 transition';
+            div.innerHTML = `
+                <span class="font-semibold text-sm">${escapeHtml(word)}</span>
+                <span class="text-xs text-gray-600">#${i + 1}</span>
+            `;
+            list.appendChild(div);
+        });
+
+        if (words.length === 0) {
+            list.innerHTML = '<p class="text-center text-gray-600 text-sm py-8">No words found</p>';
+        }
+    }
+
+    function filterScrollList() {
+        const query = document.getElementById('scroll-search').value.toLowerCase().trim();
+        const filtered = state.wordPool.filter(w => w.toLowerCase().includes(query));
+        renderScrollList(filtered);
+    }
+
+    // ═══════════════════════════════════════════
+    //  STREAK DISPLAY
+    // ═══════════════════════════════════════════
+    function updateStreakDisplay(mode) {
+        const container = document.getElementById(`${mode}-streak-container`);
+        const numEl = document.getElementById(`${mode}-streak-num`);
+        if (!container || !numEl) return;
+
+        if (state.streak >= 2) {
+            numEl.textContent = state.streak;
+            container.classList.remove('hidden');
+        } else {
+            container.classList.add('hidden');
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    //  RESULTS SCREEN
+    // ═══════════════════════════════════════════
+    function showResults() {
+        stopAllTimers();
+
+        const total = state.totalCorrect + state.totalWrong;
+        const accuracy = total > 0 ? Math.round((state.totalCorrect / total) * 100) : 0;
+
+        // Pick emoji based on accuracy
+        let emoji = '🎉', title = 'Round Complete!';
+        if (accuracy === 100) { emoji = '🏆'; title = 'Perfect Score!'; }
+        else if (accuracy >= 80) { emoji = '🌟'; title = 'Great Job!'; }
+        else if (accuracy >= 60) { emoji = '👍'; title = 'Good Work!'; }
+        else if (accuracy >= 40) { emoji = '💪'; title = 'Keep Practicing!'; }
+        else { emoji = '📚'; title = 'Time to Study!'; }
+
+        document.getElementById('results-emoji').textContent = emoji;
+        document.getElementById('results-title').textContent = title;
+        document.getElementById('results-correct').textContent = state.totalCorrect;
+        document.getElementById('results-wrong').textContent = state.totalWrong;
+        document.getElementById('results-streak').textContent = state.bestStreak;
+        document.getElementById('results-accuracy').textContent = `${accuracy}%`;
+
+        // Missed words
+        const missedSection = document.getElementById('results-missed-section');
+        const missedList = document.getElementById('results-missed-list');
+        const reviewBtn = document.getElementById('btn-review-missed');
+
+        if (state.missedWords.length > 0) {
+            missedList.innerHTML = '';
+            // Deduplicate
+            const unique = [...new Set(state.missedWords)];
+            unique.forEach(word => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-2 py-1';
+                div.innerHTML = `<span class="text-red-400 text-xs">✕</span><span class="text-sm text-gray-300">${escapeHtml(word)}</span>`;
+                missedList.appendChild(div);
+            });
+            missedSection.classList.remove('hidden');
+            reviewBtn.classList.remove('hidden');
+        } else {
+            missedSection.classList.add('hidden');
+            reviewBtn.classList.add('hidden');
+        }
+
+        showScreen('results');
+    }
+
+    function reviewMissed() {
+        // Set word pool to just the missed words and restart current mode
+        const unique = [...new Set(state.missedWords)];
+        state.wordPool = state.shuffleCards ? shuffle([...unique]) : [...unique];
+        state.wordIndex = 0;
+        state.score = 0;
+        state.totalCorrect = 0;
+        state.totalWrong = 0;
+        state.streak = 0;
+        state.bestStreak = 0;
+        state.missedWords = [];
+        state.cardFlipped = false;
+        state.answered = false;
+
+        switch (state.mode) {
+            case 'classic': startClassic(); break;
+            case 'mc':      startMC(); break;
+            case 'type':    startType(); break;
+            case 'speed':   startSpeed(); break;
+            default:        startGame(); break;
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    //  UTILITIES
+    // ═══════════════════════════════════════════
+    function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function stopAllTimers() {
+        clearInterval(state.speedInterval);
+        clearInterval(state.timerInterval);
+    }
+    </script>
+</body>
+</html>
