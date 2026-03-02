@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organiser Historiske Årsaker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Tilpasset stil for rullefelt for å gjøre den horisontale listen penere */
+        .scrollbar-hide::-webkit-scrollbar {
+            height: 8px;
+        }
+        .scrollbar-hide::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+            border-radius: 4px;
+        }
+        .scrollbar-hide::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        .scrollbar-hide::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+        .dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+        .card-transition {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card-transition:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-800">
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-slate-900 mb-2">Den industrielle revolusjon</h1>
+            <p class="text-slate-600">Organiser årsakene i en logisk rekkefølge. Du kan dra og slippe kortene, eller bruke knappene på hvert kort.</p>
+        </header>
+
+        <!-- Seksjon for valgte/aktive kort -->
+        <section class="mb-10">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-xl font-semibold text-slate-800">Din rekkefølge</h2>
+                <span id="active-count" class="text-sm bg-blue-100 text-blue-800 py-1 px-3 rounded-full font-medium">0 kort</span>
+            </div>
+            
+            <div id="active-zone" class="flex overflow-x-auto space-x-4 p-6 bg-white rounded-xl shadow-inner min-h-[280px] border-2 border-dashed border-slate-300 scrollbar-hide items-center" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'active')">
+                <!-- Aktive kort vil dukke opp her -->
+                <div id="empty-state-active" class="w-full text-center text-slate-400 italic pointer-events-none">
+                    Dra kort hit, eller trykk "Legg til" på kortene under for å starte.
+                </div>
+            </div>
+        </section>
+
+        <!-- Seksjon for tilgjengelige kort -->
+        <section>
+            <h2 class="text-xl font-semibold text-slate-800 mb-3">Tilgjengelige kort</h2>
+            <div id="pool-zone" class="flex flex-wrap gap-4 p-6 bg-slate-200 rounded-xl min-h-[200px]" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'pool')">
+                <!-- Tilgjengelige kort vil dukke opp her -->
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Kortdata
+        const initialCards = [
+            { id: 'c1', title: 'Naturressurser', text: 'Storbritannia hadde rikelige forekomster av kull og jern.', color: 'border-emerald-500' },
+            { id: 'c2', title: 'Teknologi', text: 'Fra omkring 1770 videreutviklet teknikeren James Watt dampmaskinen slik at den ble langt mer effektiv.', color: 'border-blue-500' },
+            { id: 'c3', title: 'Energiutfordringen', text: 'Utvinningen av kull ble ofte hindret av vann i gruvegangene, noe som skapte et akutt behov for pumper.', color: 'border-orange-500' },
+            { id: 'c4', title: 'Lovverk', text: 'Storbritannia hadde politiske institusjoner og lover som beskyttet privat eiendomsrett.', color: 'border-purple-500' },
+            { id: 'c5', title: 'Kultur', text: 'Det fantes en forretningskultur basert på tillit og "gentlemen\'s agreements" som ga landet et forsprang.', color: 'border-pink-500' },
+            { id: 'c6', title: 'Finansiering', text: 'Velstående familieeide selskaper og private entreprenører var villige til å satse sine egne penger på nye fabrikker.', color: 'border-yellow-500' },
+            { id: 'c7', title: 'Teori/Ideologi', text: 'På denne tiden fikk den skotske økonomen Adam Smiths ideer om spesialisering, arbeidsdeling og frihandel sitt gjennombrudd.', color: 'border-cyan-500' }
+        ];
+
+        // Tilstand (State)
+        let state = {
+            active: [],
+            pool: [...initialCards]
+        };
+
+        // Finn kort basert på ID
+        const findCard = (id) => initialCards.find(c => c.id === id);
+
+        // Hovedfunksjon for å tegne opp grensesnittet
+        function render() {
+            const activeZone = document.getElementById('active-zone');
+            const poolZone = document.getElementById('pool-zone');
+            const activeCount = document.getElementById('active-count');
+
+            // Oppdater teller
+            activeCount.innerText = `${state.active.length} kort`;
+
+            // Rens containere
+            activeZone.innerHTML = '';
+            poolZone.innerHTML = '';
+
+            // Vis tom-tilstand melding hvis listen er tom
+            if (state.active.length === 0) {
+                activeZone.innerHTML = '<div id="empty-state-active" class="w-full text-center text-slate-400 italic pointer-events-none">Dra kort hit, eller trykk "Legg til" på kortene under for å starte.</div>';
+            }
+
+            // Tegn opp aktive kort (på en linje)
+            state.active.forEach((card, index) => {
+                activeZone.appendChild(createCardElement(card, 'active', index));
+            });
+
+            // Tegn opp tilgjengelige kort
+            state.pool.forEach((card) => {
+                poolZone.appendChild(createCardElement(card, 'pool', -1));
+            });
+        }
+
+        // Opprett HTML for et enkelt kort
+        function createCardElement(card, zone, index) {
+            const el = document.createElement('div');
+            el.className = `card card-transition cursor-grab bg-white p-5 rounded-lg shadow border-t-4 ${card.color} w-72 flex-shrink-0 flex flex-col justify-between`;
+            el.draggable = true;
+            el.dataset.id = card.id;
+
+            // Dra og slipp hendelser
+            el.addEventListener('dragstart', handleDragStart);
+            el.addEventListener('dragend', handleDragEnd);
+
+            let controlsHtml = '';
+
+            if (zone === 'active') {
+                const isFirst = index === 0;
+                const isLast = index === state.active.length - 1;
+                
+                controlsHtml = `
+                    <div class="flex justify-between items-center mt-4 pt-3 border-t border-slate-100">
+                        <div class="flex space-x-2">
+                            <button onclick="moveCard('${card.id}', -1)" class="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 disabled:opacity-30" ${isFirst ? 'disabled' : ''} title="Flytt til venstre">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+                            </button>
+                            <button onclick="moveCard('${card.id}', 1)" class="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 disabled:opacity-30" ${isLast ? 'disabled' : ''} title="Flytt til høyre">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
+                            </button>
+                        </div>
+                        <button onclick="removeCard('${card.id}')" class="text-sm font-medium text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-red-50">Fjern</button>
+                    </div>
+                `;
+            } else {
+                controlsHtml = `
+                    <div class="flex justify-end mt-4 pt-3 border-t border-slate-100">
+                        <button onclick="addCard('${card.id}')" class="text-sm font-medium text-blue-600 hover:text-blue-800 px-3 py-1 bg-blue-50 rounded-md hover:bg-blue-100">Legg til</button>
+                    </div>
+                `;
+            }
+
+            el.innerHTML = `
+                <div>
+                    <h3 class="font-bold text-lg text-slate-800 mb-2">${card.title}</h3>
+                    <p class="text-sm text-slate-600 leading-relaxed">${card.text}</p>
+                </div>
+                ${controlsHtml}
+            `;
+
+            return el;
+        }
+
+        // Handlinger via knapper
+        window.addCard = (id) => {
+            const cardIndex = state.pool.findIndex(c => c.id === id);
+            if (cardIndex > -1) {
+                const card = state.pool.splice(cardIndex, 1)[0];
+                state.active.push(card);
+                render();
+            }
+        };
+
+        window.removeCard = (id) => {
+            const cardIndex = state.active.findIndex(c => c.id === id);
+            if (cardIndex > -1) {
+                const card = state.active.splice(cardIndex, 1)[0];
+                state.pool.push(card);
+                render();
+            }
+        };
+
+        window.moveCard = (id, direction) => {
+            const index = state.active.findIndex(c => c.id === id);
+            if (index < 0) return;
+            
+            const newIndex = index + direction;
+            if (newIndex >= 0 && newIndex < state.active.length) {
+                // Bytt plass
+                const temp = state.active[index];
+                state.active[index] = state.active[newIndex];
+                state.active[newIndex] = temp;
+                render();
+            }
+        };
+
+        // --- Dra og slipp funksjonalitet ---
+        let draggedElementId = null;
+
+        function handleDragStart(e) {
+            draggedElementId = e.target.dataset.id;
+            e.target.classList.add('opacity-50', 'scale-95');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', draggedElementId);
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('opacity-50', 'scale-95');
+            draggedElementId = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault(); // Nødvendig for å tillate dropping
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        // Hjelpefunksjon for å finne posisjon i listen ved dra/slipp
+        function getDragAfterElement(container, x) {
+            const draggableElements = [...container.querySelectorAll('.card:not(.opacity-50)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = x - box.left - box.width / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        window.handleDrop = (e, targetZone) => {
+            e.preventDefault();
+            const id = e.dataTransfer.getData('text/plain') || draggedElementId;
+            if (!id) return;
+
+            const cardObj = findCard(id);
+            
+            // Fjern fra eksisterende lister
+            state.active = state.active.filter(c => c.id !== id);
+            state.pool = state.pool.filter(c => c.id !== id);
+
+            if (targetZone === 'pool') {
+                state.pool.push(cardObj);
+            } else if (targetZone === 'active') {
+                const zoneContainer = document.getElementById('active-zone');
+                const afterElement = getDragAfterElement(zoneContainer, e.clientX);
+                
+                if (afterElement == null) {
+                    state.active.push(cardObj);
+                } else {
+                    const insertBeforeId = afterElement.dataset.id;
+                    const insertIndex = state.active.findIndex(c => c.id === insertBeforeId);
+                    
+                    if(insertIndex > -1) {
+                         state.active.splice(insertIndex, 0, cardObj);
+                    } else {
+                         state.active.push(cardObj);
+                    }
+                }
+            }
+            render();
+        };
+
+        // Initialisering
+        render();
+
+    </script>
+</body>
+</html>
